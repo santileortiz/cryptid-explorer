@@ -67,6 +67,10 @@
 				<button id="evaluate" class="inline">Evaluate</button>
 				<button id="clearHighlights" class="inline">Clear</button>
 			</div>
+			<div class="row">
+				<input type="checkbox" id="showHabitat" checked>
+				<label for="showHabitat" style="margin-left: 6px; font-size: 14px;">Show Habitat</label>
+			</div>
 			<div class="small" id="resultSummary">—</div>
 		</div>
 
@@ -80,7 +84,7 @@
 
 		<div class="panel group">
 			<legend>Tile arrangement (2×3)</legend>
-			<input id="arrangementStr" class="code" placeholder="e.g., 6 3 1 5 4 2" value="1 2 3 4 5 6">
+			<input id="arrangementStr" class="code" placeholder="e.g., 6 3 1 5 4 2" value="-4 -2 -5 1 -3 6">
 			<div class="row">
 				<button id="applyArrangement" class="inline">Apply</button>
 				<button id="toggleTileLabels" class="inline">Toggle labels</button>
@@ -89,12 +93,12 @@
 		</div>
 
 		<div class="panel group">
-			<legend>Import / Export</legend>
+			<legend>Import / Export Game</legend>
 			<div class="row">
-				<button id="exportBoard" class="inline">Export Board JSON</button>
-				<button id="importBoard" class="inline">Import</button>
+				<button id="exportGame" class="inline">Export Game JSON</button>
+				<button id="importGame" class="inline">Import</button>
 			</div>
-			<textarea id="boardJSON" class="code" placeholder="Board JSON will appear here..."></textarea>
+			<textarea id="gameJSON" class="code" placeholder="Game JSON will appear here..."></textarea>
 		</div>
 	</section>
 
@@ -136,14 +140,75 @@ const ANIMALS = /** @type {const} */ (['bear','cougar']);
 const STRUCT_TYPES = /** @type {const} */ (['standing_stone','abandoned_shack']);
 const COLORS = /** @type {const} */ (['black','blue','green','white']);
 
-const TERRAIN_COLORS = { desert:'#eab308', swamp:'#a78bfa', mountain:'#9ca3af', forest:'#22c55e', water:'#38bdf8' };
+const TERRAIN_COLORS = { desert:'#eab308', swamp:'#7c3aed', mountain:'#9ca3af', forest:'#16a34a', water:'#0284c7' };
 const STRUCT_COLORS = { black:'#111827', blue:'#3b82f6', green:'#22c55e', white:'#e5e7eb' };
 const RULE_COLORS = ['#f97316','#22d3ee','#a78bfa','#34d399','#f43f5e','#eab308','#06b6d4','#84cc16'];
 
 const PLAYER_COLORS = { blue:'#3b82f6', red:'#ef4444', green:'#22c55e', purple:'#a78bfa', orange:'#f97316' };
 const PLAYER_COLOR_ORDER = ['blue','red','green','purple','orange'];
 const DEFAULT_PLAYER_COLORS_BY_COUNT = {3:['blue','red','green'],4:['blue','red','green','purple'],5:['blue','red','green','purple','orange']};
-let PLAYER_ASSIGNMENTS = []; // [{color:'blue'|'red'|'green'|'purple'|'orange', ruleId:string|null}]
+let PLAYER_ASSIGNMENTS = []; // [{color:'blue'|'red'|'green'|'purple'|'orange', ruleId:string|null, clueNumber:number|null}]
+
+// Game configurations for different player counts
+let GAME_CONFIGURATIONS = {
+	3: [],  // Array of {color, clueNumber}
+	4: [],  // Array of {color, clueNumber} 
+	5: []   // Array of {color, clueNumber}
+};
+
+// Default game setup
+const DEFAULT_GAME = {
+	tileArrangement: "-4 -2 -5 1 -3 6",
+	structures: [
+		// Standing stones
+		{type: 'standing_stone', color: 'white', q: 4, r: 0},
+		{type: 'standing_stone', color: 'green', q: 1, r: 4},
+		{type: 'standing_stone', color: 'black', q: 2, r: 4},
+		{type: 'standing_stone', color: 'blue', q: 4, r: 6},
+		// Abandoned shacks  
+		{type: 'abandoned_shack', color: 'green', q: 4, r: 1},
+		{type: 'abandoned_shack', color: 'blue', q: 4, r: 2},
+		{type: 'abandoned_shack', color: 'white', q: 2, r: 3},
+		{type: 'abandoned_shack', color: 'black', q: 7, r: 4}
+	],
+	playerConfigs: {
+		3: [{color: 'green', clueNumber: 68}, {color: 'orange', clueNumber: 5}, {color: 'purple', clueNumber: 79}],
+		4: [{color: 'green', clueNumber: 62}, {color: 'blue', clueNumber: 1}, {color: 'orange', clueNumber: 78}, {color: 'purple', clueNumber: 65}],
+		5: [{color: 'red', clueNumber: 91}, {color: 'green', clueNumber: 87}, {color: 'blue', clueNumber: 88}, {color: 'orange', clueNumber: 63}, {color: 'purple', clueNumber: 49}]
+	}
+};
+
+// Clue book mappings (1-indexed in definition, 0-indexed for JS arrays)
+const CLUE_BOOK_MAPPINGS = {
+	A_Red: [47, 33, 38, 9, 7, 23, 3, 6, 32, 31, 21, 37, 44, 16, 5, 12, 48, 42, 39, 43, 46, 3, 24, 22, 27, 40, 27, 39, 29, 37, 41, 6, 43, 26, 8, 42, 14, 4, 23, 8, 22, 44, 11, 34, 1, 45, 10, 48, 12, 36, 2, 38, 20, 30, 45, 25, 28, 15, 17, 10, 26, 19, 1, 5, 35, 25, 11, 30, 35, 21, 9, 32, 7, 13, 4, 20, 28, 13, 14, 29, 18, 2, 46, 36, 40, 16, 18, 31, 15, 17, 47, 33, 41, 24, 34, 19],
+	B_Green: [26, 48, 42, 6, 43, 35, 2, 30, 10, 17, 46, 11, 31, 20, 12, 47, 40, 8, 38, 17, 15, 41, 19, 4, 39, 5, 23, 29, 32, 24, 21, 34, 27, 42, 45, 33, 6, 10, 22, 14, 1, 37, 47, 12, 43, 36, 25, 23, 38, 3, 13, 22, 46, 39, 11, 2, 1, 41, 13, 18, 40, 31, 3, 44, 45, 48, 36, 16, 18, 4, 37, 5, 26, 33, 8, 28, 27, 20, 44, 35, 14, 28, 29, 9, 16, 34, 7, 24, 25, 30, 9, 32, 7, 21, 19, 15],
+	C_Blue: [42, 40, 9, 30, 3, 42, 11, 6, 7, 21, 43, 45, 31, 17, 6, 21, 14, 25, 2, 26, 28, 4, 38, 15, 41, 18, 37, 44, 36, 20, 34, 32, 2, 19, 43, 37, 3, 23, 33, 44, 33, 18, 29, 47, 15, 13, 41, 26, 48, 48, 8, 23, 36, 47, 5, 10, 9, 12, 7, 1, 4, 16, 45, 8, 46, 10, 14, 35, 24, 34, 46, 19, 40, 28, 12, 13, 29, 22, 5, 25, 35, 16, 22, 39, 27, 24, 31, 17, 30, 1, 20, 27, 38, 39, 11, 32],
+	D_Orange: [8, 47, 24, 38, 1, 17, 28, 7, 23, 16, 27, 2, 47, 39, 43, 21, 46, 21, 29, 40, 11, 41, 9, 33, 32, 35, 26, 4, 41, 37, 8, 18, 3, 25, 34, 44, 9, 22, 30, 32, 10, 39, 42, 14, 45, 35, 38, 20, 45, 31, 26, 46, 33, 5, 18, 44, 10, 36, 30, 6, 16, 12, 48, 23, 7, 17, 11, 22, 34, 19, 6, 48, 42, 29, 5, 3, 37, 27, 13, 4, 25, 12, 36, 40, 43, 31, 15, 14, 19, 20, 28, 13, 1, 15, 24, 2],
+	E_Purple: [30, 37, 12, 5, 6, 18, 41, 27, 43, 22, 35, 23, 36, 14, 12, 44, 40, 11, 41, 4, 48, 40, 48, 2, 4, 29, 31, 43, 39, 45, 10, 1, 32, 38, 24, 3, 31, 32, 10, 5, 42, 37, 20, 33, 25, 3, 2, 30, 14, 42, 29, 44, 15, 8, 26, 23, 39, 16, 22, 21, 46, 25, 20, 16, 19, 34, 35, 38, 8, 17, 7, 28, 17, 19, 18, 26, 6, 27, 15, 9, 13, 46, 45, 33, 24, 47, 28, 9, 47, 1, 13, 36, 7, 21, 34, 11]
+};
+
+// Map color to clue book
+const COLOR_TO_CLUE_BOOK = {
+	red: 'A_Red',
+	green: 'B_Green',
+	blue: 'C_Blue',
+	orange: 'D_Orange',
+	purple: 'E_Purple'
+};
+
+function resolveRuleFromClue(color, clueNumber) {
+	const bookKey = COLOR_TO_CLUE_BOOK[color];
+	if (!bookKey || !CLUE_BOOK_MAPPINGS[bookKey]) return null;
+	
+	const mapping = CLUE_BOOK_MAPPINGS[bookKey];
+	if (clueNumber < 1 || clueNumber > 96) return null;
+	
+	const ruleIndex = mapping[clueNumber - 1]; // Convert 1-indexed to 0-indexed
+	const rule = RULES.find(r => r.id === String(ruleIndex));
+	
+	
+	return rule ? rule.id : null;
+}
 
 const ANIMAL_GLYPH = { bear:'🐻', cougar:'🐾' };
 
@@ -220,7 +285,7 @@ function regularPolygonPoints(cx, cy, radius, sides, rotationDeg=0){
 	return pts.map(([x,y])=>x.toFixed(2)+","+y.toFixed(2)).join(' ');
 }
 
-function draw(perRuleOverlays, uniqueKey){
+function draw(perRuleOverlays, uniqueKey, selectedRuleOverlay, showHabitat = true, habitatCells = null){
 	svg.innerHTML='';
 	// tight viewBox
 	const Rx = HEX_SIZE, Ry = Math.sqrt(3)*HEX_SIZE/2;
@@ -264,10 +329,32 @@ function draw(perRuleOverlays, uniqueKey){
 		if(Array.isArray(perRuleOverlays)){
 			perRuleOverlays.forEach((ov,i)=>{ if(ov.set.has(key(c.q,c.r))){ const inset=3+i*3; const hl=document.createElementNS(svgNS,'polygon'); hl.setAttribute('points', polygonPoints(0,0,Math.max(HEX_SIZE-inset,6))); hl.setAttribute('fill','none'); hl.setAttribute('stroke', ov.color || RULE_COLORS[i%RULE_COLORS.length]); hl.setAttribute('stroke-width','3'); g.appendChild(hl);} });
 		}
-		// unique intersection
-		if(uniqueKey && uniqueKey===key(c.q,c.r)){
-			const ring=document.createElementNS(svgNS,'circle'); ring.setAttribute('cx','0'); ring.setAttribute('cy','0'); ring.setAttribute('r',String(HEX_SIZE-6)); ring.setAttribute('fill','none'); ring.setAttribute('stroke','#fde68a'); ring.setAttribute('stroke-width','5'); g.appendChild(ring);
-			const dot=document.createElementNS(svgNS,'circle'); dot.setAttribute('cx','0'); dot.setAttribute('cy','0'); dot.setAttribute('r','3'); dot.setAttribute('fill','#ffffff'); g.appendChild(dot);
+		
+		// selected rule overlay (black outline with smallest radius, drawn last so it's on top)
+		if(selectedRuleOverlay && selectedRuleOverlay.set.has(key(c.q,c.r))){
+			const maxInset = 3 + (perRuleOverlays ? perRuleOverlays.length * 3 : 0);
+			const hl=document.createElementNS(svgNS,'polygon'); 
+			hl.setAttribute('points', polygonPoints(0,0,Math.max(HEX_SIZE-maxInset-3,4))); 
+			hl.setAttribute('fill','none'); 
+			hl.setAttribute('stroke','#000000'); 
+			hl.setAttribute('stroke-width','2'); 
+			g.appendChild(hl);
+		}
+		
+		// habitat cells (show target emoji for all cells in final intersection)
+		if(habitatCells && habitatCells.has(key(c.q,c.r)) && showHabitat){
+			const habitat=document.createElementNS(svgNS,'text'); 
+			habitat.setAttribute('x','0'); 
+			habitat.setAttribute('y','4'); 
+			habitat.setAttribute('text-anchor','middle'); 
+			habitat.setAttribute('font-size','20'); 
+			habitat.setAttribute('font-weight','700');
+			habitat.setAttribute('fill','#fbbf24');
+			habitat.setAttribute('stroke','#000000');
+			habitat.setAttribute('stroke-width','1');
+			habitat.style.paintOrder='stroke';
+			habitat.textContent='🎯'; 
+			g.appendChild(habitat);
 		}
 		g.addEventListener('click', onHexClick); svg.appendChild(g);
 	});
@@ -291,13 +378,29 @@ function draw(perRuleOverlays, uniqueKey){
 	}
 }
 
+let habitatCellSet = null; // Global variable to store habitat cells
+
+function redrawWithSelection(){
+	let selectedRuleOverlay = null;
+	if(selectedRuleId){
+		const rule = RULES.find(r => r.id === selectedRuleId);
+		if(rule){
+			const validCells = evalRule(rule);
+			selectedRuleOverlay = { set: validCells };
+		}
+	}
+	const showHabitat = document.getElementById('showHabitat')?.checked ?? true;
+	draw(latestPerRule, latestUniqueKey, selectedRuleOverlay, showHabitat, habitatCellSet);
+	updateRuleCounts();
+}
+
 // ===== Painting =====
 let currentTerrain = /** @type {Terrain} */ ('desert');
 let currentMarker = /** @type {{ kind:'animal'|'structure'|null, value?:any }} */ ({ kind:null });
 function onHexClick(e){
 	e.preventDefault(); e.stopPropagation();
 	const g=e.currentTarget; const q=+g.dataset.q; const r=+g.dataset.r; const c=cellAt(q,r);
-	if(e.altKey){ c.animals.clear(); c.structures=[]; draw(latestPerRule, latestUniqueKey); updateRuleCounts(); return; }
+	if(e.altKey){ c.animals.clear(); c.structures=[]; redrawWithSelection(); return; }
 	if(e.shiftKey){
 		if(currentMarker.kind==='animal'){
 			if(c.animals.has(currentMarker.value)) c.animals.delete(currentMarker.value); else c.animals.add(currentMarker.value);
@@ -311,7 +414,7 @@ function onHexClick(e){
 		}
 	}
 	else { c.terrain=currentTerrain; }
-	draw(latestPerRule, latestUniqueKey); updateRuleCounts();
+	redrawWithSelection();
 }
 
 // ===== Palettes =====
@@ -364,16 +467,146 @@ function applyArrangementString(str, redraw=true){
 		lastArrangement = arr;
 		blankBoard();
 		arr.forEach(a=> stampTile(a.id, a.flipped, a.col, a.row));
-		if(redraw){ draw(latestPerRule, latestUniqueKey); updateRuleCounts(); }
+		if(redraw){ redrawWithSelection(); }
 	}catch(e){ alert(e.message); }
 }
 
-// ===== Import/Export (board) =====
-const exportBtn=document.getElementById('exportBoard');
-const importBtn=document.getElementById('importBoard');
-const boardJSON=document.getElementById('boardJSON');
-exportBtn.addEventListener('click',()=>{ const data={ width:Board.width, height:Board.height, cells:[...Board.cells.values()].map(c=>({ q:c.q,r:c.r, terrain:c.terrain, animals:[...c.animals], structures:c.structures }))}; boardJSON.value=JSON.stringify(data,null,2); });
-importBtn.addEventListener('click',()=>{ try{ const data=JSON.parse(boardJSON.value); Board.width=12; Board.height=9; Board.cells.clear(); for(const raw of data.cells||[]){ const c=cellAt(raw.q, raw.r); c.terrain=raw.terrain; c.animals=new Set(raw.animals||[]); c.structures=raw.structures||[]; } draw(latestPerRule, latestUniqueKey); updateRuleCounts();}catch(e){ alert('Invalid JSON'); }});
+// ===== Import/Export (game) =====
+const exportBtn=document.getElementById('exportGame');
+const importBtn=document.getElementById('importGame');
+const gameJSON=document.getElementById('gameJSON');
+
+function exportGame() {
+	// Get current tile arrangement
+	const arrangementStr = document.getElementById('arrangementStr').value || "1 2 3 4 5 6";
+	
+	// Get all structures from the board
+	const structures = [];
+	forEachCell(c => {
+		if (c.structures.length > 0) {
+			c.structures.forEach(s => {
+				structures.push({
+					type: s.type,
+					color: s.color,
+					q: c.q,
+					r: c.r
+				});
+			});
+		}
+	});
+	
+	// Create game data
+	const gameData = {
+		tileArrangement: arrangementStr,
+		structures: structures,
+		playerConfigs: {
+			3: GAME_CONFIGURATIONS[3],
+			4: GAME_CONFIGURATIONS[4], 
+			5: GAME_CONFIGURATIONS[5]
+		}
+	};
+	
+	gameJSON.value = JSON.stringify(gameData, null, 2);
+}
+
+function importGame() {
+	try {
+		const gameData = JSON.parse(gameJSON.value);
+		
+		// Apply tile arrangement
+		document.getElementById('arrangementStr').value = gameData.tileArrangement || "1 2 3 4 5 6";
+		applyArrangementString(gameData.tileArrangement || "1 2 3 4 5 6", false);
+		
+		// Place structures
+		if (gameData.structures) {
+			gameData.structures.forEach(s => {
+				const cell = cellAt(s.q, s.r);
+				cell.structures.push({
+					type: s.type,
+					color: s.color
+				});
+			});
+		}
+		
+		// Load player configurations
+		if (gameData.playerConfigs) {
+			GAME_CONFIGURATIONS[3] = gameData.playerConfigs[3] || [];
+			GAME_CONFIGURATIONS[4] = gameData.playerConfigs[4] || [];
+			GAME_CONFIGURATIONS[5] = gameData.playerConfigs[5] || [];
+		}
+		
+		// Update current player assignments based on current player count
+		updatePlayerAssignmentsFromConfig();
+		
+		rebuildAssignmentsUI();
+		redrawWithSelection();
+		
+	} catch(e) { 
+		alert('Invalid Game JSON: ' + e.message); 
+	}
+}
+
+function updatePlayerAssignmentsFromConfig() {
+	const p = +playersSel.value;
+	const config = GAME_CONFIGURATIONS[p] || [];
+	const defaultColors = DEFAULT_PLAYER_COLORS_BY_COUNT[p] || PLAYER_COLOR_ORDER.slice(0,p);
+	
+	// Ensure PLAYER_ASSIGNMENTS has the right length
+	while(PLAYER_ASSIGNMENTS.length < p) {
+		PLAYER_ASSIGNMENTS.push({
+			color: defaultColors[PLAYER_ASSIGNMENTS.length] || PLAYER_COLOR_ORDER[PLAYER_ASSIGNMENTS.length],
+			ruleId: null,
+			clueNumber: null
+		});
+	}
+	PLAYER_ASSIGNMENTS.length = p; // Trim if too long
+	
+	// Update PLAYER_ASSIGNMENTS with config data
+	config.forEach((cfg, i) => {
+		if (i < PLAYER_ASSIGNMENTS.length) {
+			PLAYER_ASSIGNMENTS[i].color = cfg.color;
+			PLAYER_ASSIGNMENTS[i].clueNumber = cfg.clueNumber;
+			PLAYER_ASSIGNMENTS[i].ruleId = resolveRuleFromClue(cfg.color, cfg.clueNumber);
+		}
+	});
+}
+
+function saveCurrentAssignmentsToConfig() {
+	const p = +playersSel.value;
+	GAME_CONFIGURATIONS[p] = PLAYER_ASSIGNMENTS.map(a => ({
+		color: a.color,
+		clueNumber: a.clueNumber
+	})).filter(cfg => cfg.clueNumber !== null);
+}
+
+function loadDefaultGame() {
+	// Apply tile arrangement
+	document.getElementById('arrangementStr').value = DEFAULT_GAME.tileArrangement;
+	applyArrangementString(DEFAULT_GAME.tileArrangement, false);
+	
+	// Place structures
+	DEFAULT_GAME.structures.forEach(s => {
+		const cell = cellAt(s.q, s.r);
+		cell.structures.push({
+			type: s.type,
+			color: s.color
+		});
+	});
+	
+	// Load player configurations
+	GAME_CONFIGURATIONS[3] = [...DEFAULT_GAME.playerConfigs[3]];
+	GAME_CONFIGURATIONS[4] = [...DEFAULT_GAME.playerConfigs[4]];
+	GAME_CONFIGURATIONS[5] = [...DEFAULT_GAME.playerConfigs[5]];
+	
+	// Display the default game JSON in the text area
+	gameJSON.value = JSON.stringify(DEFAULT_GAME, null, 2);
+	
+	// Update current player assignments based on current player count
+	updatePlayerAssignmentsFromConfig();
+}
+
+exportBtn.addEventListener('click', exportGame);
+importBtn.addEventListener('click', importGame);
 
 // (Tiles are fixed to the standard 6; no capture/export/import UI)
 // ===== Tile UI wires =====
@@ -383,67 +616,69 @@ const toggleTileLabelsBtn = document.getElementById('toggleTileLabels');
 applyArrangementBtn.addEventListener('click', ()=> applyArrangementString(arrangementStr.value||'1 2 3 4 5 6'));
 arrangementStr.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); applyArrangementString(arrangementStr.value||'1 2 3 4 5 6'); }});
 
-toggleTileLabelsBtn.addEventListener('click', ()=>{ showTileLabels=!showTileLabels; draw(latestPerRule, latestUniqueKey); updateRuleCounts(); });
+toggleTileLabelsBtn.addEventListener('click', ()=>{ showTileLabels=!showTileLabels; redrawWithSelection(); });
 
 // ===== Legend =====
 function buildLegend(){ const wrap=document.getElementById('legend'); wrap.innerHTML=''; TERRAIN.forEach(t=>{ const d=document.createElement('div'); d.className='swatch'; d.innerHTML=`<span class='sw' style='background:${TERRAIN_COLORS[t]}'></span>${t}`; wrap.appendChild(d); }); ANIMALS.forEach(a=>{ const d=document.createElement('div'); d.className='swatch'; d.textContent=`${a} ${ANIMAL_GLYPH[a]}`; wrap.appendChild(d); }); STRUCT_TYPES.forEach(st=>{ COLORS.forEach(col=>{ const d=document.createElement('div'); d.className='swatch'; d.innerHTML=`<span class='colorChip' style='background:${STRUCT_COLORS[col]}'></span>${col} ${st.replace('_',' ')}`; wrap.appendChild(d); }); }); }
 
 // ===== Rules =====
 /** @typedef {{ id:string, label:string, negated:boolean, within:0|1|2|3, targets:Array<{kind:'terrain',terrain:Terrain[]}|{kind:'animal',animal:Animal[]}|{kind:'structure',type:StructureType[],colors:Color[] }>, players:number[] }} Rule */
-const DEFAULT_RULES=(()=>{ const rules=[]; let id=1; const add=(label,negated,within,targets,players)=>rules.push({id:String(id++),label,negated,within,targets,players});
-	add('on desert',false,0,[{kind:'terrain',terrain:['desert']}],[3,4,5]);
-	add('on swamp',false,0,[{kind:'terrain',terrain:['swamp']}],[3,4,5]);
-	add('on mountain',false,0,[{kind:'terrain',terrain:['mountain']}],[3,4,5]);
-	add('on forest',false,0,[{kind:'terrain',terrain:['forest']}],[3,4,5]);
-	add('on water',false,0,[{kind:'terrain',terrain:['water']}],[3,4,5]);
+const DEFAULT_RULES=(()=>{
+	const rules=[];
+	let id=1;
+	const add=(label,negated,within,targets,players)=>rules.push({id:String(id++),label,negated,within,targets,players});
+	
+	// Canonical rules 1-48 from the cryptid cluebooks (exact order and text)
 	add('not on desert or mountain',true,0,[{kind:'terrain',terrain:['desert','mountain']}],[3,4,5]);
-	add('not on swamp or forest',true,0,[{kind:'terrain',terrain:['swamp','forest']}],[3,4,5]);
-	add('not on water',true,0,[{kind:'terrain',terrain:['water']}],[3,4,5]);
-	add('within 1 of desert or swamp',false,1,[{kind:'terrain',terrain:['desert','swamp']}],[3,4,5]);
-	add('within 1 of mountain or forest',false,1,[{kind:'terrain',terrain:['mountain','forest']}],[3,4,5]);
-	add('within 2 of water',false,2,[{kind:'terrain',terrain:['water']}],[3,4,5]);
-	add('not within 1 of water',true,1,[{kind:'terrain',terrain:['water']}],[3,4,5]);
-	add('within 1 of a bear territory',false,1,[{kind:'animal',animal:['bear']}],[3,4,5]);
-	add('within 1 of a cougar territory',false,1,[{kind:'animal',animal:['cougar']}],[3,4,5]);
-	add('within 2 of a bear or cougar territory',false,2,[{kind:'animal',animal:['bear','cougar']}],[3,4,5]);
-	add('not within 1 of any animal territory',true,1,[{kind:'animal',animal:['bear','cougar']}],[3,4,5]);
-	add('within 1 of a standing stone',false,1,[{kind:'structure',type:['standing_stone'],colors:['black','blue','green','white']}],[3,4,5]);
-	add('within 1 of an abandoned shack',false,1,[{kind:'structure',type:['abandoned_shack'],colors:['black','blue','green','white']}],[3,4,5]);
-	add('within 2 of any structure',false,2,[{kind:'structure',type:['standing_stone','abandoned_shack'],colors:['black','blue','green','white']}],[3,4,5]);
-	add('not within 1 of any structure',true,1,[{kind:'structure',type:['standing_stone','abandoned_shack'],colors:['black','blue','green','white']}],[3,4,5]);
-	add('within 1 of a black structure',false,1,[{kind:'structure',type:['standing_stone','abandoned_shack'],colors:['black']}],[3,4,5]);
-	add('within 1 of a blue structure',false,1,[{kind:'structure',type:['standing_stone','abandoned_shack'],colors:['blue']}],[3,4,5]);
-	add('within 1 of a green structure',false,1,[{kind:'structure',type:['standing_stone','abandoned_shack'],colors:['green']}],[3,4,5]);
-	add('within 1 of a white structure',false,1,[{kind:'structure',type:['standing_stone','abandoned_shack'],colors:['white']}],[3,4,5]);
-	add('on desert or forest',false,0,[{kind:'terrain',terrain:['desert','forest']}],[3,4,5]);
-	add('on swamp or mountain',false,0,[{kind:'terrain',terrain:['swamp','mountain']}],[3,4,5]);
-	add('not on desert or forest',true,0,[{kind:'terrain',terrain:['desert','forest']}],[3,4,5]);
+	add('not on desert or swamp',true,0,[{kind:'terrain',terrain:['desert','swamp']}],[3,4,5]);
+	add('not on desert or water',true,0,[{kind:'terrain',terrain:['desert','water']}],[3,4,5]);
+	add('not on forest or desert',true,0,[{kind:'terrain',terrain:['forest','desert']}],[3,4,5]);
+	add('not on forest or mountain',true,0,[{kind:'terrain',terrain:['forest','mountain']}],[3,4,5]);
+	add('not on forest or swamp',true,0,[{kind:'terrain',terrain:['forest','swamp']}],[3,4,5]);
+	add('not on forest or water',true,0,[{kind:'terrain',terrain:['forest','water']}],[3,4,5]);
 	add('not on swamp or mountain',true,0,[{kind:'terrain',terrain:['swamp','mountain']}],[3,4,5]);
-	add('within 3 of water',false,3,[{kind:'terrain',terrain:['water']}],[3,4,5]);
-	add('not within 3 of water',true,3,[{kind:'terrain',terrain:['water']}],[3,4,5]);
-	add('within 3 of any structure',false,3,[{kind:'structure',type:['standing_stone','abandoned_shack'],colors:['black','blue','green','white']}],[3,4,5]);
-	add('within 3 of any animal territory',false,3,[{kind:'animal',animal:['bear','cougar']}],[3,4,5]);
-	add('not on mountain',true,0,[{kind:'terrain',terrain:['mountain']}],[3,4,5]);
-	add('not on swamp',true,0,[{kind:'terrain',terrain:['swamp']}],[3,4,5]);
-	add('not on forest',true,0,[{kind:'terrain',terrain:['forest']}],[3,4,5]);
-	add('within 1 of a black standing stone',false,1,[{kind:'structure',type:['standing_stone'],colors:['black']}],[3,4,5]);
-	add('within 1 of a green abandoned shack',false,1,[{kind:'structure',type:['abandoned_shack'],colors:['green']}],[3,4,5]);
-	add('within 2 of a blue standing stone',false,2,[{kind:'structure',type:['standing_stone'],colors:['blue']}],[3,4,5]);
-	add('within 2 of a white abandoned shack',false,2,[{kind:'structure',type:['abandoned_shack'],colors:['white']}],[3,4,5]);
-	add('within 1 of desert or a standing stone',false,1,[{kind:'terrain',terrain:['desert']},{kind:'structure',type:['standing_stone'],colors:['black','blue','green','white']}],[3,4,5]);
-	add('within 2 of swamp or a cougar territory',false,2,[{kind:'terrain',terrain:['swamp']},{kind:'animal',animal:['cougar']}],[3,4,5]);
-	add('within 2 of mountain',false,2,[{kind:'terrain',terrain:['mountain']}],[3,4]);
-	add('within 2 of forest',false,2,[{kind:'terrain',terrain:['forest']}],[4,5]);
-	add('not within 1 of a black structure',true,1,[{kind:'structure',type:['standing_stone','abandoned_shack'],colors:['black']}],[5]);
-	add('not within 1 of a bear territory',true,1,[{kind:'animal',animal:['bear']}],[3]);
-	add('within 1 of water',false,1,[{kind:'terrain',terrain:['water']}],[3,4,5]);
-	add('within 2 of desert or forest',false,2,[{kind:'terrain',terrain:['desert','forest']}],[3,4,5]);
-	add('within 2 of swamp or mountain',false,2,[{kind:'terrain',terrain:['swamp','mountain']}],[3,4,5]);
-	add('not within 2 of any animal territory',true,2,[{kind:'animal',animal:['bear','cougar']}],[3,4,5]);
-	add('not within 2 of any structure',true,2,[{kind:'structure',type:['standing_stone','abandoned_shack'],colors:['black','blue','green','white']}],[3,4,5]);
+	add('not on water or mountains',true,0,[{kind:'terrain',terrain:['water','mountain']}],[3,4,5]);
+	add('not on water or swamp',true,0,[{kind:'terrain',terrain:['water','swamp']}],[3,4,5]);
+	add('not within one space of desert',true,1,[{kind:'terrain',terrain:['desert']}],[3,4,5]);
+	add('not within one space of either animal territory',true,1,[{kind:'animal',animal:['bear','cougar']}],[3,4,5]);
+	add('not within one space of forest',true,1,[{kind:'terrain',terrain:['forest']}],[3,4,5]);
+	add('not within one space of mountain',true,1,[{kind:'terrain',terrain:['mountain']}],[3,4,5]);
+	add('not within one space of swamp',true,1,[{kind:'terrain',terrain:['swamp']}],[3,4,5]);
+	add('not within one space of water',true,1,[{kind:'terrain',terrain:['water']}],[3,4,5]);
+	add('not within three spaces of a black structure',true,3,[{kind:'structure',type:['standing_stone','abandoned_shack'],colors:['black']}],[3,4,5]);
+	add('not within three spaces of a blue structure',true,3,[{kind:'structure',type:['standing_stone','abandoned_shack'],colors:['blue']}],[3,4,5]);
+	add('not within three spaces of a green structure',true,3,[{kind:'structure',type:['standing_stone','abandoned_shack'],colors:['green']}],[3,4,5]);
+	add('not within three spaces of a white structure',true,3,[{kind:'structure',type:['standing_stone','abandoned_shack'],colors:['white']}],[3,4,5]);
+	add('not within two spaces of a standing stone',true,2,[{kind:'structure',type:['standing_stone'],colors:['black','blue','green','white']}],[3,4,5]);
+	add('not within two spaces of an abandoned shack',true,2,[{kind:'structure',type:['abandoned_shack'],colors:['black','blue','green','white']}],[3,4,5]);
+	add('not within two spaces of bear territory',true,2,[{kind:'animal',animal:['bear']}],[3,4,5]);
+	add('not within two spaces of cougar territory',true,2,[{kind:'animal',animal:['cougar']}],[3,4,5]);
+	add('on desert or mountain',false,0,[{kind:'terrain',terrain:['desert','mountain']}],[3,4,5]);
 	add('on desert or swamp',false,0,[{kind:'terrain',terrain:['desert','swamp']}],[3,4,5]);
+	add('on desert or water',false,0,[{kind:'terrain',terrain:['desert','water']}],[3,4,5]);
+	add('on forest or desert',false,0,[{kind:'terrain',terrain:['forest','desert']}],[3,4,5]);
 	add('on forest or mountain',false,0,[{kind:'terrain',terrain:['forest','mountain']}],[3,4,5]);
-	return rules.slice(0,48);
+	add('on forest or swamp',false,0,[{kind:'terrain',terrain:['forest','swamp']}],[3,4,5]);
+	add('on forest or water',false,0,[{kind:'terrain',terrain:['forest','water']}],[3,4,5]);
+	add('on swamp or mountain',false,0,[{kind:'terrain',terrain:['swamp','mountain']}],[3,4,5]);
+	add('on water or mountains',false,0,[{kind:'terrain',terrain:['water','mountain']}],[3,4,5]);
+	add('on water or swamp',false,0,[{kind:'terrain',terrain:['water','swamp']}],[3,4,5]);
+	add('within one space of desert',false,1,[{kind:'terrain',terrain:['desert']}],[3,4,5]);
+	add('within one space of either animal territory',false,1,[{kind:'animal',animal:['bear','cougar']}],[3,4,5]);
+	add('within one space of forest',false,1,[{kind:'terrain',terrain:['forest']}],[3,4,5]);
+	add('within one space of mountain',false,1,[{kind:'terrain',terrain:['mountain']}],[3,4,5]);
+	add('within one space of swamp',false,1,[{kind:'terrain',terrain:['swamp']}],[3,4,5]);
+	add('within one space of water',false,1,[{kind:'terrain',terrain:['water']}],[3,4,5]);
+	add('within three spaces of a black structure',false,3,[{kind:'structure',type:['standing_stone','abandoned_shack'],colors:['black']}],[3,4,5]);
+	add('within three spaces of a blue structure',false,3,[{kind:'structure',type:['standing_stone','abandoned_shack'],colors:['blue']}],[3,4,5]);
+	add('within three spaces of a green structure',false,3,[{kind:'structure',type:['standing_stone','abandoned_shack'],colors:['green']}],[3,4,5]);
+	add('within three spaces of a white structure',false,3,[{kind:'structure',type:['standing_stone','abandoned_shack'],colors:['white']}],[3,4,5]);
+	add('within two spaces of a standing stone',false,2,[{kind:'structure',type:['standing_stone'],colors:['black','blue','green','white']}],[3,4,5]);
+	add('within two spaces of an abandoned shack',false,2,[{kind:'structure',type:['abandoned_shack'],colors:['black','blue','green','white']}],[3,4,5]);
+	add('within two spaces of bear territory',false,2,[{kind:'animal',animal:['bear']}],[3,4,5]);
+	add('within two spaces of cougar territory',false,2,[{kind:'animal',animal:['cougar']}],[3,4,5]);
+	
+	return rules;
 })();
 let RULES=structuredClone(DEFAULT_RULES);
 
@@ -455,8 +690,39 @@ function rebuildRuleList(){
 	const p=+playersSel.value; const subset=RULES.filter(r=>r.players.includes(p));
 	subset.forEach((r,i)=>{
 		const row=document.createElement('div'); row.className='ruleItem'; row.dataset.id=r.id;
-		const label=document.createElement('div'); label.textContent=r.label; label.style.cursor='default';
+		const label=document.createElement('div'); label.textContent=r.label; label.style.cursor='pointer';
 		const count=document.createElement('div'); count.id=`rc_${r.id}`; count.className='small'; count.textContent='';
+		
+		// Make rule selectable
+		row.style.cursor='pointer';
+		row.addEventListener('click', ()=>{
+			// Clear previous selection
+			document.querySelectorAll('.ruleItem').forEach(item => {
+				item.style.backgroundColor = '';
+				item.style.border = '';
+			});
+			
+			// Toggle selection
+			if(selectedRuleId === r.id){
+				selectedRuleId = null;
+				row.style.backgroundColor = '';
+				row.style.border = '';
+			} else {
+				selectedRuleId = r.id;
+				row.style.backgroundColor = '#0b1220';
+				row.style.border = '2px solid #22d3ee';
+			}
+			
+			// Redraw with selected rule highlighted
+			redrawWithSelection();
+		});
+		
+		// Restore selection visual state if this rule is selected
+		if(selectedRuleId === r.id){
+			row.style.backgroundColor = '#0b1220';
+			row.style.border = '2px solid #22d3ee';
+		}
+		
 		row.appendChild(label); row.appendChild(count);ruleList.appendChild(row);
 	});
 }
@@ -473,24 +739,112 @@ function rebuildAssignmentsUI(){
 	const host=document.getElementById('assignments'); if(!host) return; host.innerHTML='';
 	const p=+playersSel.value;
 	const defaultColors = DEFAULT_PLAYER_COLORS_BY_COUNT[p] || PLAYER_COLOR_ORDER.slice(0,p);
+	// Get current config for this player count
+	const currentConfig = GAME_CONFIGURATIONS[p] || [];
+	
 	if(PLAYER_ASSIGNMENTS.length!==p){
-		PLAYER_ASSIGNMENTS = Array.from({length:p}, (_,i)=>({ color: defaultColors[i]||PLAYER_COLOR_ORDER[i], ruleId: (PLAYER_ASSIGNMENTS[i]&&PLAYER_ASSIGNMENTS[i].ruleId)||null }));
+		PLAYER_ASSIGNMENTS = Array.from({length:p}, (_,i)=>{
+			const configItem = currentConfig[i];
+			if(configItem) {
+				return {
+					color: configItem.color,
+					clueNumber: configItem.clueNumber,
+					ruleId: resolveRuleFromClue(configItem.color, configItem.clueNumber)
+				};
+			} else {
+				return {
+					color: defaultColors[i]||PLAYER_COLOR_ORDER[i], 
+					ruleId: null,
+					clueNumber: null
+				};
+			}
+		});
 	} else {
-		PLAYER_ASSIGNMENTS.forEach((a,i)=>{ if(!a||!a.color){ PLAYER_ASSIGNMENTS[i]={ color: defaultColors[i]||PLAYER_COLOR_ORDER[i], ruleId: a?a.ruleId:null }; } });
+		PLAYER_ASSIGNMENTS.forEach((a,i)=>{ 
+			const configItem = currentConfig[i];
+			if(configItem && (!a || !a.color)) {
+				PLAYER_ASSIGNMENTS[i] = {
+					color: configItem.color,
+					clueNumber: configItem.clueNumber,
+					ruleId: resolveRuleFromClue(configItem.color, configItem.clueNumber)
+				};
+			} else if(!a||!a.color){ 
+				PLAYER_ASSIGNMENTS[i]={ 
+					color: defaultColors[i]||PLAYER_COLOR_ORDER[i], 
+					ruleId: a?a.ruleId:null,
+					clueNumber: a?a.clueNumber:null
+				}; 
+			} 
+		});
 	}
-	const rules = visibleRules();
+	
 	PLAYER_ASSIGNMENTS.forEach((a,idx)=>{
 		const row=document.createElement('div'); row.className='row';
 		const label=document.createElement('label'); label.textContent=`Player ${idx+1}`; label.style.minWidth='70px';
 		const chip=document.createElement('span'); chip.className='colorChip'; chip.style.background=PLAYER_COLORS[a.color]; chip.style.marginRight='6px';
+		
 		const colorSel=document.createElement('select');
 		PLAYER_COLOR_ORDER.forEach(c=>{ const opt=document.createElement('option'); opt.value=c; opt.textContent=c; opt.selected=(a.color===c); colorSel.appendChild(opt); });
-		colorSel.addEventListener('change', ()=>{ a.color=colorSel.value; chip.style.background=PLAYER_COLORS[a.color]; });
-		const ruleSel=document.createElement('select');
-		const none=document.createElement('option'); none.value=''; none.textContent='— none —'; ruleSel.appendChild(none);
-		rules.forEach(r=>{ const opt=document.createElement('option'); opt.value=r.id; opt.textContent=r.label; opt.selected=(a.ruleId===r.id); ruleSel.appendChild(opt); });
-		ruleSel.addEventListener('change', ()=>{ a.ruleId = ruleSel.value||null; });
-		row.appendChild(label); row.appendChild(chip); row.appendChild(colorSel); row.appendChild(ruleSel);
+		colorSel.addEventListener('change', ()=>{ 
+			a.color=colorSel.value; 
+			chip.style.background=PLAYER_COLORS[a.color]; 
+			// Re-resolve rule when color changes
+			if (a.clueNumber) {
+				const newRuleId = resolveRuleFromClue(a.color, a.clueNumber);
+				a.ruleId = newRuleId;
+				updateRuleDisplay(a, ruleDisplay);
+			}
+			// Save current assignments to game configurations
+			saveCurrentAssignmentsToConfig();
+		});
+		
+		const clueInput=document.createElement('input');
+		clueInput.type='number';
+		clueInput.min='1';
+		clueInput.max='96';
+		clueInput.placeholder='1-96';
+		clueInput.style.width='60px';
+		clueInput.style.marginLeft='6px';
+		if (a.clueNumber) clueInput.value = a.clueNumber;
+		
+		const ruleDisplay=document.createElement('span');
+		ruleDisplay.style.fontSize='12px';
+		ruleDisplay.style.color='var(--muted)';
+		ruleDisplay.style.marginLeft='6px';
+		
+		function updateRuleDisplay(assignment, displayElement) {
+			if (assignment.ruleId) {
+				const rule = RULES.find(r => r.id === assignment.ruleId);
+				displayElement.textContent = rule ? rule.label : '(unknown rule)';
+			} else {
+				displayElement.textContent = '';
+			}
+		}
+		
+		clueInput.addEventListener('input', ()=>{ 
+			const clueNum = parseInt(clueInput.value, 10);
+			if (clueNum >= 1 && clueNum <= 96) {
+				a.clueNumber = clueNum;
+				const ruleId = resolveRuleFromClue(a.color, clueNum);
+				a.ruleId = ruleId;
+				updateRuleDisplay(a, ruleDisplay);
+			} else {
+				a.clueNumber = null;
+				a.ruleId = null;
+				ruleDisplay.textContent = '';
+			}
+			// Save current assignments to game configurations
+			saveCurrentAssignmentsToConfig();
+		});
+		
+		// Initial rule display
+		updateRuleDisplay(a, ruleDisplay);
+		
+		row.appendChild(label); 
+		row.appendChild(chip); 
+		row.appendChild(colorSel); 
+		row.appendChild(clueInput);
+		row.appendChild(ruleDisplay);
 		host.appendChild(row);
 	});
 }
@@ -517,6 +871,7 @@ function evalRule(rule){
 	return good;
 }
 let latestPerRule=null, latestUniqueKey=null;
+let selectedRuleId=null; // Track the currently selected rule for inspection
 const evaluateBtn=document.getElementById('evaluate');
 const clearHighlightsBtn=document.getElementById('clearHighlights');
 const resultSummary=document.getElementById('resultSummary');
@@ -524,29 +879,54 @@ const resultSummary=document.getElementById('resultSummary');
 evaluateBtn.addEventListener('click',()=>{
 	const p=+playersSel.value; const subset=RULES.filter(r=>r.players.includes(p));
 	const byId=new Map(subset.map(r=>[r.id,r]));
-	const act = PLAYER_ASSIGNMENTS.map(a=>a.ruleId).filter(Boolean).map(id=>byId.get(id)).filter(Boolean);
-	if(act.length===0){ latestPerRule=null; latestUniqueKey=null; draw(); updateRuleCounts(); resultSummary.textContent='No assigned rules.'; return; }
-	const per = act.map((r,i)=>[r, evalRule(r), i]);
+	
+	// Get active assignments with their original indices
+	const activeAssignments = PLAYER_ASSIGNMENTS.map((a,idx)=>({...a, originalIndex:idx})).filter(a=>a.ruleId);
+	const act = activeAssignments.map(a=>byId.get(a.ruleId)).filter(Boolean);
+	
+	if(act.length===0){ latestPerRule=null; latestUniqueKey=null; redrawWithSelection(); resultSummary.textContent='No assigned rules.'; return; }
+	
+	const per = act.map((r,i)=>[r, evalRule(r), activeAssignments[i]]);
 	per.forEach(([r,s])=>{ const el=document.getElementById(`rc_${r.id}`); if(el) el.textContent=`${s.size}`; });
-	const overlays = per.map(([r,s,i])=>({id:r.id,set:s,color: PLAYER_COLORS[PLAYER_ASSIGNMENTS[i].color] }));
+	
+	const overlays = per.map(([r,s,assignment])=>({id:r.id,set:s,color: PLAYER_COLORS[assignment.color] }));
 	let acc=null; per.forEach(([_,s])=>{ acc = acc? intersect(acc,s): s; });
 	const uniqKey=acc.size===1?[...acc][0]:null;
-	latestPerRule=overlays; latestUniqueKey=uniqKey; draw(overlays,uniqKey); updateRuleCounts();
+	
+	// Store habitat cells for visualization
+	habitatCellSet = acc;
+	
+	latestPerRule=overlays; latestUniqueKey=uniqKey; redrawWithSelection();
 	const lines=[`Assigned rules: ${act.length}`, `Intersection: ${acc.size}`];
-	per.slice(0,5).forEach(([r,s],i)=>lines.push(`#P${i+1} ${r.label} → ${s.size}`));
+	per.slice(0,5).forEach(([r,s,assignment],i)=>lines.push(`#P${assignment.originalIndex+1} ${r.label} → ${s.size}`));
 	resultSummary.textContent=lines.join('  |  ');
 });
 function intersect(a,b){ const out=new Set(); for(const v of a) if(b.has(v)) out.add(v); return out; }
-clearHighlightsBtn.addEventListener('click',()=>{ latestPerRule=null; latestUniqueKey=null; draw(); updateRuleCounts(); resultSummary.textContent='—'; });
-playersSel.addEventListener('change', ()=>{ rebuildRuleList(); rebuildAssignmentsUI(); updateRuleCounts(); });
+clearHighlightsBtn.addEventListener('click',()=>{ latestPerRule=null; latestUniqueKey=null; redrawWithSelection(); resultSummary.textContent='—'; });
+
+const showHabitatCheckbox = document.getElementById('showHabitat');
+showHabitatCheckbox.addEventListener('change', ()=>{ redrawWithSelection(); });
+playersSel.addEventListener('change', ()=>{ 
+	// Clear rule selection if the currently selected rule is not available for the new player count
+	if(selectedRuleId) {
+		const p = +playersSel.value;
+		const availableRules = RULES.filter(r => r.players.includes(p));
+		if(!availableRules.find(r => r.id === selectedRuleId)) {
+			selectedRuleId = null;
+		}
+	}
+	rebuildRuleList(); rebuildAssignmentsUI(); 
+	updatePlayerAssignmentsFromConfig(); // Load saved config for this player count
+	rebuildAssignmentsUI(); // Rebuild again with the loaded config
+	redrawWithSelection(); 
+});
 
 // ===== Bootstrap =====
 buildPalettes(); buildLegend();
-applyArrangementString(document.getElementById('arrangementStr').value, false);
-draw();
+loadDefaultGame(); // Load the default game setup
 rebuildRuleList();
-rebuildAssignmentsUI();
-updateRuleCounts();
+rebuildAssignmentsUI(); // This will now pick up the loaded configurations
+redrawWithSelection();
 refreshRulesJSON();
 
 </script>
