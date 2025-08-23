@@ -9,7 +9,7 @@
 		html, body { height: 100%; }
 		body {
 			margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-			background: var(--bg); color: var(--text); display: grid; grid-template-columns: 320px 1fr 360px;
+			background: var(--bg); color: var(--text); display: grid; grid-template-columns: 320px 1fr 420px;
 			grid-template-rows: auto 1fr; grid-template-areas:
 				"header header header"
 				"left canvas right";
@@ -68,7 +68,7 @@
 				<button id="clearHighlights" class="inline">Clear</button>
 			</div>
 			<div class="row">
-				<input type="checkbox" id="showHabitat" checked>
+				<input type="checkbox" id="showHabitat">
 				<label for="showHabitat" style="margin-left: 6px; font-size: 14px;">Show Habitat</label>
 			</div>
 			<div class="small" id="resultSummary">—</div>
@@ -116,20 +116,6 @@
 		<div class="panel group">
 			<legend>Players & clues</legend>
 			<div id="assignments"></div>
-		</div>
-
-		<div class="panel group">
-			<legend>Rules JSON (editable)</legend>
-			<textarea id="rulesJSON" class="code" spellcheck="false"></textarea>
-			<div class="row">
-				<button id="applyRules" class="inline">Apply JSON</button>
-				<button id="resetRules" class="inline">Reset</button>
-			</div>
-		</div>
-
-		<div class="panel group">
-			<legend>Legend</legend>
-			<div id="legend"></div>
 		</div>
 	</aside>
 
@@ -618,8 +604,6 @@ arrangementStr.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.prevent
 
 toggleTileLabelsBtn.addEventListener('click', ()=>{ showTileLabels=!showTileLabels; redrawWithSelection(); });
 
-// ===== Legend =====
-function buildLegend(){ const wrap=document.getElementById('legend'); wrap.innerHTML=''; TERRAIN.forEach(t=>{ const d=document.createElement('div'); d.className='swatch'; d.innerHTML=`<span class='sw' style='background:${TERRAIN_COLORS[t]}'></span>${t}`; wrap.appendChild(d); }); ANIMALS.forEach(a=>{ const d=document.createElement('div'); d.className='swatch'; d.textContent=`${a} ${ANIMAL_GLYPH[a]}`; wrap.appendChild(d); }); STRUCT_TYPES.forEach(st=>{ COLORS.forEach(col=>{ const d=document.createElement('div'); d.className='swatch'; d.innerHTML=`<span class='colorChip' style='background:${STRUCT_COLORS[col]}'></span>${col} ${st.replace('_',' ')}`; wrap.appendChild(d); }); }); }
 
 // ===== Rules =====
 /** @typedef {{ id:string, label:string, negated:boolean, within:0|1|2|3, targets:Array<{kind:'terrain',terrain:Terrain[]}|{kind:'animal',animal:Animal[]}|{kind:'structure',type:StructureType[],colors:Color[] }>, players:number[] }} Rule */
@@ -682,7 +666,6 @@ const DEFAULT_RULES=(()=>{
 })();
 let RULES=structuredClone(DEFAULT_RULES);
 
-const rulesJSON=document.getElementById('rulesJSON'); function refreshRulesJSON(){ rulesJSON.value=JSON.stringify(RULES,null,2); }
 const ruleList=document.getElementById('ruleList'); const playersSel=document.getElementById('players');
 
 function rebuildRuleList(){
@@ -922,12 +905,11 @@ playersSel.addEventListener('change', ()=>{
 });
 
 // ===== Bootstrap =====
-buildPalettes(); buildLegend();
+buildPalettes();
 loadDefaultGame(); // Load the default game setup
 rebuildRuleList();
 rebuildAssignmentsUI(); // This will now pick up the loaded configurations
 redrawWithSelection();
-refreshRulesJSON();
 
 </script>
 </body>
