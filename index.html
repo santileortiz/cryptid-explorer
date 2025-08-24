@@ -1043,17 +1043,24 @@ function exportQueue() {
 	const queueJSON = JSON.stringify(CAPTURE_QUEUE, null, 2);
 	document.getElementById('gameJSON').value = queueJSON;
 	
-	// Auto-copy to clipboard
-	navigator.clipboard.writeText(queueJSON).then(() => {
-		const originalText = exportQueueBtn.textContent;
-		exportQueueBtn.textContent = 'Copied!';
-		setTimeout(() => {
-			exportQueueBtn.textContent = originalText;
-		}, 1000);
-	}).catch(() => {
-		// Fallback - just show in textarea
-		alert('Queue exported to text area below');
-	});
+	// Create and download JSON file
+	const blob = new Blob([queueJSON], { type: 'application/json' });
+	const url = URL.createObjectURL(blob);
+	
+	const a = document.createElement('a');
+	a.href = url;
+	a.download = `cryptid-games-${new Date().toISOString().slice(0, 10)}.json`; // e.g., cryptid-games-2024-08-24.json
+	document.body.appendChild(a);
+	a.click();
+	document.body.removeChild(a);
+	URL.revokeObjectURL(url);
+	
+	// Show success feedback
+	const originalText = exportQueueBtn.textContent;
+	exportQueueBtn.textContent = 'Downloaded!';
+	setTimeout(() => {
+		exportQueueBtn.textContent = originalText;
+	}, 1000);
 }
 
 function clearQueue() {
