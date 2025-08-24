@@ -77,6 +77,11 @@
 				<button id="applyArrangement" class="inline">Apply</button>
 				<button id="toggleTileLabels" class="inline">Toggle tile numbers</button>
 			</div>
+
+			<div class="row">
+				<button id="prevGame" class="inline">Previous Game</button>
+				<button id="nextGame" class="inline">Next Game</button>
+			</div>
 			
 		</div>
 
@@ -85,6 +90,27 @@
 			<div class="row">
 				<button id="exportGame" class="inline">Export</button>
 				<button id="importGame" class="inline">Import</button>
+				<button id="toggleCaptureMode" class="inline">Capture Mode</button>
+			</div>
+			<div id="capturePanel" style="display: none;">
+				<div class="small" style="margin-bottom: 8px;">Game Capture: Enter all player configurations for one game, use Tab to navigate</div>
+				<div style="display: grid; grid-template-columns: auto 1fr; gap: 6px; margin-bottom: 8px;">
+					<label class="small" style="padding: 6px 0; font-weight: bold;">3P:</label>
+					<input id="capture3P" type="text" placeholder="G68 O5 P79 51" style="font-family: monospace; padding: 6px; border: 1px solid #666; background: #1f2937; color: white;">
+					
+					<label class="small" style="padding: 6px 0; font-weight: bold;">4P:</label>
+					<input id="capture4P" type="text" placeholder="G62 B1 O78 P65 48" style="font-family: monospace; padding: 6px; border: 1px solid #666; background: #1f2937; color: white;">
+					
+					<label class="small" style="padding: 6px 0; font-weight: bold;">5P:</label>
+					<input id="capture5P" type="text" placeholder="R91 G87 B88 O63 P49 68" style="font-family: monospace; padding: 6px; border: 1px solid #666; background: #1f2937; color: white;">
+				</div>
+				<div class="row" style="margin-bottom: 6px;">
+					<span id="captureStatus" class="small">Queue: 0 games</span>
+					<button id="captureGame" class="inline">Capture Game</button>
+					<button id="exportQueue" class="inline">Export Queue</button>
+					<button id="clearQueue" class="inline">Clear</button>
+				</div>
+				<div class="small" style="color: #9ca3af;">Colors: R=Red, G=Green, B=Blue, O=Orange, P=Purple | Format: [Color][Clue#] [Color][Clue#] ... [Hint#]</div>
 			</div>
 			<textarea id="gameJSON" class="code" placeholder="Game JSON will appear here..."></textarea>
 		</div>
@@ -143,6 +169,10 @@ let GAME_HINTS = {
 	4: null,  // Hint number (1-80) 
 	5: null   // Hint number (1-80)
 };
+
+// Batch capture mode
+let CAPTURE_MODE = false;
+let CAPTURE_QUEUE = [];
 
 // Hint descriptions (1-indexed)
 const HINT_DESCRIPTIONS = [
@@ -229,32 +259,23 @@ const HINT_DESCRIPTIONS = [
 	"no terrain or terrain clues"
 ];
 
-// Default game setup
-const DEFAULT_GAME = {
-	tileArrangement: "-4 -2 -5 1 -3 6",
-	structures: [
-		// Standing stones
-		{type: 'standing_stone', color: 'white', q: 4, r: 0},
-		{type: 'standing_stone', color: 'green', q: 1, r: 4},
-		{type: 'standing_stone', color: 'black', q: 2, r: 4},
-		{type: 'standing_stone', color: 'blue', q: 4, r: 6},
-		// Abandoned shacks  
-		{type: 'abandoned_shack', color: 'green', q: 4, r: 1},
-		{type: 'abandoned_shack', color: 'blue', q: 4, r: 2},
-		{type: 'abandoned_shack', color: 'white', q: 2, r: 3},
-		{type: 'abandoned_shack', color: 'black', q: 7, r: 4}
-	],
-	playerConfigs: {
-		3: [{color: 'green', clueNumber: 68}, {color: 'orange', clueNumber: 5}, {color: 'purple', clueNumber: 79}],
-		4: [{color: 'green', clueNumber: 62}, {color: 'blue', clueNumber: 1}, {color: 'orange', clueNumber: 78}, {color: 'purple', clueNumber: 65}],
-		5: [{color: 'red', clueNumber: 91}, {color: 'green', clueNumber: 87}, {color: 'blue', clueNumber: 88}, {color: 'orange', clueNumber: 63}, {color: 'purple', clueNumber: 49}]
-	},
-	hints: {
-		3: 51,
-		4: 48,
-		5: 68
+let GAMES = null;
+
+async function loadJsonFile(url)
+{
+	const response = await fetch(url);
+	if (!response.ok)
+	{
+		throw new Error(`Failed to load ${url}: ${response.status}`);
 	}
-};
+	return await response.json();
+}
+
+loadJsonFile("games.json")
+	.then(data => {
+		GAMES = data;
+	})
+	.catch(err => console.error(err));
 
 // Clue book mappings (1-indexed in definition, 0-indexed for JS arrays)
 const CLUE_BOOK_MAPPINGS = {
@@ -476,6 +497,45 @@ function redrawWithSelection(){
 let currentStructureType = null; // 'standing_stone' | 'abandoned_shack' | null
 let currentStructureColor = null; // 'black' | 'blue' | 'green' | 'white' | null
 
+// ===== Auto-advance structure selection =====
+function advanceToNextStructure() {
+	// Order: blue stone -> blue shack -> green stone -> green shack -> white stone -> white shack -> black stone -> black shack
+	const structureSequence = [
+		{ color: 'blue', type: 'standing_stone' },
+		{ color: 'blue', type: 'abandoned_shack' },
+		{ color: 'green', type: 'standing_stone' },
+		{ color: 'green', type: 'abandoned_shack' },
+		{ color: 'white', type: 'standing_stone' },
+		{ color: 'white', type: 'abandoned_shack' },
+		{ color: 'black', type: 'standing_stone' },
+		{ color: 'black', type: 'abandoned_shack' }
+	];
+	
+	// Find current position in sequence
+	const currentIndex = structureSequence.findIndex(s => 
+		s.color === currentStructureColor && s.type === currentStructureType
+	);
+	
+	// Advance to next in sequence (wrap around to beginning)
+	const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % structureSequence.length;
+	const nextStructure = structureSequence[nextIndex];
+	
+	currentStructureColor = nextStructure.color;
+	currentStructureType = nextStructure.type;
+	
+	// Update visual selection in structure palette
+	document.querySelectorAll('#structurePalette button').forEach(b => {
+		b.style.boxShadow = '';
+	});
+	
+	// Find and highlight the new selection
+	// Structure palette layout: blue stone, blue shack, green stone, green shack, white stone, white shack, black stone, black shack
+	const buttons = document.querySelectorAll('#structurePalette button');
+	if (buttons[nextIndex]) {
+		buttons[nextIndex].style.boxShadow = '0 0 0 2px #22d3ee';
+	}
+}
+
 // ===== Hex click (structure placement only) =====
 function onHexClick(e){
 	e.preventDefault(); e.stopPropagation();
@@ -515,6 +575,11 @@ function onHexClick(e){
 	}
 	
 	autoEvaluateAndRedraw();
+	
+	// Auto-advance to next structure if in capture mode
+	if (CAPTURE_MODE) {
+		advanceToNextStructure();
+	}
 }
 
 
@@ -603,46 +668,74 @@ function exportGame() {
 	gameJSON.value = JSON.stringify(gameData, null, 2);
 }
 
+function loadGame(gameData) {
+	// Apply tile arrangement
+	document.getElementById('arrangementStr').value = gameData.tileArrangement || "1 2 3 4 5 6";
+	applyArrangementString(gameData.tileArrangement || "1 2 3 4 5 6", false);
+
+	// Place structures
+	if (gameData.structures) {
+		gameData.structures.forEach(s => {
+			const cell = cellAt(s.q, s.r);
+			cell.structures.push({
+					     type: s.type,
+					     color: s.color
+			});
+		});
+	}
+
+	// Load player configurations
+	if (gameData.playerConfigs) {
+		GAME_CONFIGURATIONS[3] = gameData.playerConfigs[3] || [];
+		GAME_CONFIGURATIONS[4] = gameData.playerConfigs[4] || [];
+		GAME_CONFIGURATIONS[5] = gameData.playerConfigs[5] || [];
+	}
+
+	// Load hints
+	if (gameData.hints) {
+		GAME_HINTS[3] = gameData.hints[3] || null;
+		GAME_HINTS[4] = gameData.hints[4] || null;
+		GAME_HINTS[5] = gameData.hints[5] || null;
+	}
+
+	// Update current player assignments based on current player count
+	updatePlayerAssignmentsFromConfig();
+
+	rebuildAssignmentsUI();
+	updateHintDisplay(); // Update hint display after import
+	autoEvaluateAndRedraw();
+}
+
 function importGame() {
 	try {
-		const gameData = JSON.parse(gameJSON.value);
-		
-		// Apply tile arrangement
-		document.getElementById('arrangementStr').value = gameData.tileArrangement || "1 2 3 4 5 6";
-		applyArrangementString(gameData.tileArrangement || "1 2 3 4 5 6", false);
-		
-		// Place structures
-		if (gameData.structures) {
-			gameData.structures.forEach(s => {
-				const cell = cellAt(s.q, s.r);
-				cell.structures.push({
-					type: s.type,
-					color: s.color
-				});
-			});
-		}
-		
-		// Load player configurations
-		if (gameData.playerConfigs) {
-			GAME_CONFIGURATIONS[3] = gameData.playerConfigs[3] || [];
-			GAME_CONFIGURATIONS[4] = gameData.playerConfigs[4] || [];
-			GAME_CONFIGURATIONS[5] = gameData.playerConfigs[5] || [];
-		}
-		
-		// Load hints
-		if (gameData.hints) {
-			GAME_HINTS[3] = gameData.hints[3] || null;
-			GAME_HINTS[4] = gameData.hints[4] || null;
-			GAME_HINTS[5] = gameData.hints[5] || null;
-		}
-		
-		// Update current player assignments based on current player count
-		updatePlayerAssignmentsFromConfig();
-		
-		rebuildAssignmentsUI();
-		updateHintDisplay(); // Update hint display after import
-		autoEvaluateAndRedraw();
-		
+		loadGame (JSON.parse(gameJSON.value));
+	} catch(e) { 
+		alert('Invalid Game JSON: ' + e.message); 
+	}
+}
+
+let currentGame = 0;
+
+const prevGameBtn = document.getElementById('prevGame');
+prevGameBtn.addEventListener('click', prevGame);
+const nextGameBtn = document.getElementById('nextGame');
+nextGameBtn.addEventListener('click', nextGame);
+
+function nextGame() {
+	try {
+		currentGame++;
+		currentGame = currentGame % GAMES.length;
+		loadGame(GAMES[currentGame]);
+	} catch(e) { 
+		alert('Invalid Game JSON: ' + e.message); 
+	}
+}
+
+function prevGame() {
+	try {
+		currentGame--;
+		currentGame = currentGame < 0 ? GAMES.length -1 : currentGame;
+		loadGame (GAMES[currentGame]);
 	} catch(e) { 
 		alert('Invalid Game JSON: ' + e.message); 
 	}
@@ -682,12 +775,14 @@ function saveCurrentAssignmentsToConfig() {
 }
 
 function loadDefaultGame() {
+	let default_game = GAMES[0];
+
 	// Apply tile arrangement
-	document.getElementById('arrangementStr').value = DEFAULT_GAME.tileArrangement;
-	applyArrangementString(DEFAULT_GAME.tileArrangement, false);
+	document.getElementById('arrangementStr').value = default_game.tileArrangement;
+	applyArrangementString(default_game.tileArrangement, false);
 	
 	// Place structures
-	DEFAULT_GAME.structures.forEach(s => {
+	default_game.structures.forEach(s => {
 		const cell = cellAt(s.q, s.r);
 		cell.structures.push({
 			type: s.type,
@@ -696,17 +791,17 @@ function loadDefaultGame() {
 	});
 	
 	// Load player configurations
-	GAME_CONFIGURATIONS[3] = [...DEFAULT_GAME.playerConfigs[3]];
-	GAME_CONFIGURATIONS[4] = [...DEFAULT_GAME.playerConfigs[4]];
-	GAME_CONFIGURATIONS[5] = [...DEFAULT_GAME.playerConfigs[5]];
+	GAME_CONFIGURATIONS[3] = [...default_game.playerConfigs[3]];
+	GAME_CONFIGURATIONS[4] = [...default_game.playerConfigs[4]];
+	GAME_CONFIGURATIONS[5] = [...default_game.playerConfigs[5]];
 	
 	// Load hints
-	GAME_HINTS[3] = DEFAULT_GAME.hints[3];
-	GAME_HINTS[4] = DEFAULT_GAME.hints[4];
-	GAME_HINTS[5] = DEFAULT_GAME.hints[5];
+	GAME_HINTS[3] = default_game.hints[3];
+	GAME_HINTS[4] = default_game.hints[4];
+	GAME_HINTS[5] = default_game.hints[5];
 	
 	// Display the default game JSON in the text area
-	gameJSON.value = JSON.stringify(DEFAULT_GAME, null, 2);
+	gameJSON.value = JSON.stringify(default_game, null, 2);
 	
 	// Update current player assignments based on current player count
 	updatePlayerAssignmentsFromConfig();
@@ -714,6 +809,332 @@ function loadDefaultGame() {
 
 exportBtn.addEventListener('click', exportGame);
 importBtn.addEventListener('click', importGame);
+
+// ===== Batch Capture Mode =====
+const toggleCaptureModeBtn = document.getElementById('toggleCaptureMode');
+const capturePanel = document.getElementById('capturePanel');
+const capture3PInput = document.getElementById('capture3P');
+const capture4PInput = document.getElementById('capture4P');
+const capture5PInput = document.getElementById('capture5P');
+const captureGameBtn = document.getElementById('captureGame');
+const captureStatus = document.getElementById('captureStatus');
+const exportQueueBtn = document.getElementById('exportQueue');
+const clearQueueBtn = document.getElementById('clearQueue');
+
+function toggleCaptureMode() {
+	CAPTURE_MODE = !CAPTURE_MODE;
+	capturePanel.style.display = CAPTURE_MODE ? 'block' : 'none';
+	toggleCaptureModeBtn.textContent = CAPTURE_MODE ? 'Exit Capture' : 'Capture Mode';
+	updateCaptureStatus();
+	
+	if (CAPTURE_MODE) {
+		// Focus on tile arrangement and select text for easy replacement
+		setTimeout(() => {
+			capture3PInput.value = '';
+			capture4PInput.value = '';
+			capture5PInput.value = '';
+			
+			const arrangementInput = document.getElementById('arrangementStr');
+			arrangementInput.focus();
+			arrangementInput.select();
+		}, 100);
+	}
+}
+
+function updateCaptureStatus() {
+	captureStatus.textContent = `Queue: ${CAPTURE_QUEUE.length} games`;
+}
+
+function checkAutoCapture() {
+	if (!CAPTURE_MODE) return;
+	
+	const p = +playersSel.value;
+	const hintNumber = GAME_HINTS[p];
+	
+	// Check if all players have clues and hint is set
+	const allPlayersComplete = PLAYER_ASSIGNMENTS.slice(0, p).every(a => a.clueNumber && a.clueNumber >= 1 && a.clueNumber <= 96);
+	const hintComplete = hintNumber && hintNumber >= 1 && hintNumber <= 80;
+	
+	if (allPlayersComplete && hintComplete) {
+		captureCurrentGame();
+	}
+}
+
+function captureCurrentGame() {
+	const gameData = {
+		playerCount: +playersSel.value,
+		tileArrangement: document.getElementById('arrangementStr').value || "-4 -2 -5 1 -3 6",
+		structures: [],
+		playerConfigs: PLAYER_ASSIGNMENTS.slice(0, +playersSel.value).map(a => ({
+			color: a.color,
+			clueNumber: a.clueNumber
+		})),
+		hint: GAME_HINTS[+playersSel.value]
+	};
+	
+	// Get structures from board
+	forEachCell(c => {
+		if (c.structures.length > 0) {
+			c.structures.forEach(s => {
+				gameData.structures.push({
+					type: s.type,
+					color: s.color,
+					q: c.q,
+					r: c.r
+				});
+			});
+		}
+	});
+	
+	CAPTURE_QUEUE.push(gameData);
+	updateCaptureStatus();
+	
+	// Show brief success feedback
+	const originalText = captureStatus.textContent;
+	captureStatus.textContent = `✓ Game ${CAPTURE_QUEUE.length} captured!`;
+	captureStatus.style.color = '#22c55e';
+	setTimeout(() => {
+		updateCaptureStatus();
+		captureStatus.style.color = 'var(--muted)';
+	}, 1000);
+}
+
+function parsePlayerConfig(inputStr, playerCount) {
+	// Format: "G68 O5 P79 H51" (for playerCount clues + hint)
+	const trimmed = inputStr.trim().toUpperCase();
+	if (!trimmed) return null;
+	
+	// Parse the clues and hint
+	const parts = trimmed.split(/\s+/);
+	
+	// Should have playerCount clues + 1 hint
+	if (parts.length !== playerCount + 1) return null;
+	
+	// Extract clues
+	const colorMap = { R: 'red', G: 'green', B: 'blue', O: 'orange', P: 'purple' };
+	const clues = [];
+	
+	for (let i = 0; i < playerCount; i++) {
+		const part = parts[i];
+		if (part.length < 2) return null;
+		
+		const colorLetter = part[0];
+		const clueNumber = parseInt(part.substring(1));
+		
+		if (!colorMap[colorLetter] || isNaN(clueNumber) || clueNumber < 1 || clueNumber > 96) {
+			return null;
+		}
+		
+		clues.push({ color: colorMap[colorLetter], clueNumber });
+	}
+	
+	// Extract hint (just a number, no "H" prefix)
+	const hintPart = parts[playerCount];
+	const hintNumber = parseInt(hintPart);
+	if (isNaN(hintNumber) || hintNumber < 1 || hintNumber > 80) return null;
+	
+	return { clues, hintNumber };
+}
+
+function captureCompleteGame() {
+	// Parse all three player configurations
+	const config3P = parsePlayerConfig(capture3PInput.value, 3);
+	const config4P = parsePlayerConfig(capture4PInput.value, 4);
+	const config5P = parsePlayerConfig(capture5PInput.value, 5);
+	
+	// Check if all configurations are valid
+	if (!config3P || !config4P || !config5P) {
+		// Highlight invalid inputs
+		[capture3PInput, capture4PInput, capture5PInput].forEach((input, idx) => {
+			const config = [config3P, config4P, config5P][idx];
+			if (!config) {
+				input.style.borderColor = '#ef4444';
+				setTimeout(() => { input.style.borderColor = '#666'; }, 1000);
+			}
+		});
+		return false;
+	}
+	
+	// Create game data with all player configurations
+	const gameData = {
+		tileArrangement: document.getElementById('arrangementStr').value || "-4 -2 -5 1 -3 6",
+		structures: [],
+		playerConfigs: {
+			3: config3P.clues,
+			4: config4P.clues,
+			5: config5P.clues
+		},
+		hints: {
+			3: config3P.hintNumber,
+			4: config4P.hintNumber,
+			5: config5P.hintNumber
+		}
+	};
+	
+	// Get structures from board
+	forEachCell(c => {
+		if (c.structures.length > 0) {
+			c.structures.forEach(s => {
+				gameData.structures.push({
+					type: s.type,
+					color: s.color,
+					q: c.q,
+					r: c.r
+				});
+			});
+		}
+	});
+	
+	// Add to queue
+	CAPTURE_QUEUE.push(gameData);
+	updateCaptureStatus();
+	
+	// Show success feedback
+	[capture3PInput, capture4PInput, capture5PInput].forEach(input => {
+		input.style.borderColor = '#22c55e';
+		setTimeout(() => { input.style.borderColor = '#666'; }, 500);
+	});
+	
+	const originalText = captureStatus.textContent;
+	captureStatus.textContent = `✓ Game ${CAPTURE_QUEUE.length} captured!`;
+	captureStatus.style.color = '#22c55e';
+	setTimeout(() => {
+		updateCaptureStatus();
+		captureStatus.style.color = 'var(--muted)';
+	}, 1000);
+	
+	// Auto-clear inputs for next game
+	setTimeout(() => {
+		capture3PInput.value = '';
+		capture4PInput.value = '';
+		capture5PInput.value = '';
+		
+		// Focus on tile arrangement and select text for easy replacement
+		const arrangementInput = document.getElementById('arrangementStr');
+		arrangementInput.focus();
+		arrangementInput.select();
+		
+		// Reset structure selection to first (blue standing stone)
+		currentStructureType = 'standing_stone';
+		currentStructureColor = 'blue';
+		
+		// Update structure palette visual selection
+		document.querySelectorAll('#structurePalette button').forEach(b => {
+			b.style.boxShadow = '';
+		});
+		
+		// Find and highlight the blue standing stone button
+		const structurePaletteButtons = document.querySelectorAll('#structurePalette button');
+		if (structurePaletteButtons.length > 0) {
+			structurePaletteButtons[0].style.boxShadow = '0 0 0 2px #22d3ee';
+		}
+	}, 600);
+	
+	return true;
+}
+
+
+function exportQueue() {
+	if (CAPTURE_QUEUE.length === 0) {
+		alert('No games in queue to export!');
+		return;
+	}
+	
+	const queueJSON = JSON.stringify(CAPTURE_QUEUE, null, 2);
+	document.getElementById('gameJSON').value = queueJSON;
+	
+	// Auto-copy to clipboard
+	navigator.clipboard.writeText(queueJSON).then(() => {
+		const originalText = exportQueueBtn.textContent;
+		exportQueueBtn.textContent = 'Copied!';
+		setTimeout(() => {
+			exportQueueBtn.textContent = originalText;
+		}, 1000);
+	}).catch(() => {
+		// Fallback - just show in textarea
+		alert('Queue exported to text area below');
+	});
+}
+
+function clearQueue() {
+	if (confirm('Clear all captured games from queue?')) {
+		CAPTURE_QUEUE = [];
+		updateCaptureStatus();
+	}
+}
+
+toggleCaptureModeBtn.addEventListener('click', toggleCaptureMode);
+exportQueueBtn.addEventListener('click', exportQueue);
+clearQueueBtn.addEventListener('click', clearQueue);
+
+// Capture input event listeners
+const captureInputs = [capture3PInput, capture4PInput, capture5PInput];
+
+captureInputs.forEach((input, index) => {
+	// Tab navigation enhancement
+	input.addEventListener('keydown', (e) => {
+		if (e.key === 'Tab' && !e.shiftKey) {
+			// Tab to next field
+			e.preventDefault();
+			const nextIndex = (index + 1) % captureInputs.length;
+			captureInputs[nextIndex].focus();
+		} else if (e.key === 'Tab' && e.shiftKey) {
+			// Shift+Tab to previous field
+			e.preventDefault();
+			const prevIndex = (index - 1 + captureInputs.length) % captureInputs.length;
+			captureInputs[prevIndex].focus();
+		} else if (e.key === 'Enter') {
+			// Enter attempts to capture if this is the last field or if all fields are filled
+			if (index === 2 || captureInputs.every(inp => inp.value.trim())) {
+				captureCompleteGame();
+			} else {
+				// Move to next field
+				const nextIndex = (index + 1) % captureInputs.length;
+				captureInputs[nextIndex].focus();
+			}
+		}
+	});
+});
+
+// Capture button event listener
+captureGameBtn.addEventListener('click', captureCompleteGame);
+
+// Tile arrangement apply and structure placement start in capture mode
+document.getElementById('arrangementStr').addEventListener('keydown', (e) => {
+	if (CAPTURE_MODE && e.key === 'Enter') {
+		e.preventDefault();
+		
+		// Apply the tile arrangement
+		const arrangementInput = document.getElementById('arrangementStr');
+		applyArrangementString(arrangementInput.value, true);
+		
+		// Start structure placement mode by selecting first structure
+		currentStructureType = 'standing_stone';
+		currentStructureColor = 'blue';
+		
+		// Update structure palette visual selection
+		document.querySelectorAll('#structurePalette button').forEach(b => {
+			b.style.boxShadow = '';
+		});
+		
+		// Highlight the blue standing stone button
+		const structurePaletteButtons = document.querySelectorAll('#structurePalette button');
+		if (structurePaletteButtons.length > 0) {
+			structurePaletteButtons[0].style.boxShadow = '0 0 0 2px #22d3ee';
+		}
+		
+		// Remove focus from input so user can start clicking on hex tiles
+		arrangementInput.blur();
+	}
+});
+
+// Quick jump to player configs from structure placement (global key listener in capture mode)
+document.addEventListener('keydown', (e) => {
+	if (CAPTURE_MODE && e.key === 'Tab' && !e.target.matches('input, textarea')) {
+		e.preventDefault();
+		capture3PInput.focus();
+	}
+});
 
 // (Tiles are fixed to the standard 6; no capture/export/import UI)
 // ===== Tile UI wires =====
@@ -983,6 +1404,8 @@ function rebuildAssignmentsUI(){
 			saveCurrentAssignmentsToConfig();
 			// Auto-evaluate and redraw
 			autoEvaluateAndRedraw();
+			// Check for auto-capture
+			checkAutoCapture();
 		});
 		
 		// Initial rule display
@@ -1043,6 +1466,7 @@ function updateHintDisplay() {
 		if (newHintNumber >= 1 && newHintNumber <= 80) {
 			GAME_HINTS[p] = newHintNumber;
 			updateHintDisplay(); // Refresh to show new description
+			checkAutoCapture(); // Check for auto-capture
 		}
 	});
 }
@@ -1270,12 +1694,25 @@ function buildStructurePalette(){
 }
 
 // ===== Bootstrap =====
-loadDefaultGame(); // Load the default game setup
-rebuildRuleList();
-rebuildAssignmentsUI(); // This will now pick up the loaded configurations
-buildStructurePalette();
-updateHintDisplay(); // Initialize hint display
-autoEvaluateAndRedraw(); // Auto-evaluate on startup
+function boot()
+{
+	loadDefaultGame();
+	rebuildRuleList();
+	rebuildAssignmentsUI();
+	buildStructurePalette();
+	updateHintDisplay();
+	autoEvaluateAndRedraw();
+}
+
+// Poll until GAMES is ready
+const interval = setInterval(() =>
+{
+	if (window.GAMES !== null)
+	{
+		clearInterval(interval);
+		boot();
+	}
+}, 100);
 
 </script>
 </body>
