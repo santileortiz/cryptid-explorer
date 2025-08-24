@@ -775,7 +775,7 @@ function rebuildAssignmentsUI(){
 			if (a.clueNumber) {
 				const newRuleId = resolveRuleFromClue(a.color, a.clueNumber);
 				a.ruleId = newRuleId;
-				updateRuleDisplay(a, ruleDisplay);
+				updateRuleDisplay(a, ruleDisplay, cellCount);
 			}
 			// Save current assignments to game configurations
 			saveCurrentAssignmentsToConfig();
@@ -794,13 +794,52 @@ function rebuildAssignmentsUI(){
 		ruleDisplay.style.fontSize='12px';
 		ruleDisplay.style.color='var(--muted)';
 		ruleDisplay.style.marginLeft='6px';
+		ruleDisplay.style.cursor='pointer';
+		ruleDisplay.style.textDecoration='underline';
 		
-		function updateRuleDisplay(assignment, displayElement) {
+		const cellCount=document.createElement('span');
+		cellCount.style.fontSize='12px';
+		cellCount.style.color='var(--muted)';
+		cellCount.style.marginLeft='6px';
+		cellCount.style.fontWeight='bold';
+		
+		function updateRuleDisplay(assignment, displayElement, countElement) {
 			if (assignment.ruleId) {
 				const rule = RULES.find(r => r.id === assignment.ruleId);
-				displayElement.textContent = rule ? rule.label : '(unknown rule)';
+				if (rule) {
+					displayElement.textContent = rule.label;
+					// Calculate cell count
+					const cellSet = evalRule(rule);
+					countElement.textContent = `(${cellSet.size})`;
+					
+					// Make clickable to select in rule list
+					displayElement.onclick = () => {
+						// Clear previous selection
+						document.querySelectorAll('.ruleItem').forEach(item => {
+							item.style.backgroundColor = '';
+							item.style.border = '';
+						});
+						
+						// Select this rule in the list
+						selectedRuleId = rule.id;
+						const ruleItem = document.querySelector(`.ruleItem[data-id="${rule.id}"]`);
+						if (ruleItem) {
+							ruleItem.style.backgroundColor = '#0b1220';
+							ruleItem.style.border = '2px solid #22d3ee';
+						}
+						
+						// Redraw with selected rule highlighted
+						redrawWithSelection();
+					};
+				} else {
+					displayElement.textContent = '(unknown rule)';
+					countElement.textContent = '';
+					displayElement.onclick = null;
+				}
 			} else {
 				displayElement.textContent = '';
+				countElement.textContent = '';
+				displayElement.onclick = null;
 			}
 		}
 		
@@ -810,24 +849,26 @@ function rebuildAssignmentsUI(){
 				a.clueNumber = clueNum;
 				const ruleId = resolveRuleFromClue(a.color, clueNum);
 				a.ruleId = ruleId;
-				updateRuleDisplay(a, ruleDisplay);
+				updateRuleDisplay(a, ruleDisplay, cellCount);
 			} else {
 				a.clueNumber = null;
 				a.ruleId = null;
 				ruleDisplay.textContent = '';
+				cellCount.textContent = '';
 			}
 			// Save current assignments to game configurations
 			saveCurrentAssignmentsToConfig();
 		});
 		
 		// Initial rule display
-		updateRuleDisplay(a, ruleDisplay);
+		updateRuleDisplay(a, ruleDisplay, cellCount);
 		
 		row.appendChild(label); 
 		row.appendChild(chip); 
 		row.appendChild(colorSel); 
 		row.appendChild(clueInput);
 		row.appendChild(ruleDisplay);
+		row.appendChild(cellCount);
 		host.appendChild(row);
 	});
 }
