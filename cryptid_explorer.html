@@ -50,8 +50,7 @@
 		<h1>Cryptid Analyzer</h1>
 		<span class="badge">flat-top hex · 12×9</span>
 		<div class="small">
-			Click = paint terrain · <span class="kbd">Shift</span>+Click = toggle marker (animal/structure) ·
-			<span class="kbd">Alt</span>+Click = erase · Evaluate draws outlines for each player's assigned rule; the single cell satisfying all assigned rules is highlighted.
+			Evaluate draws outlines for each player's assigned rule; the single cell satisfying all assigned rules is highlighted with the habitat marker. Place structures by selecting them and clicking hexes.
 		</div>
 	</header>
 
@@ -75,11 +74,9 @@
 		</div>
 
 		<div class="panel group">
-			<legend>Board</legend>
-			<legend>Paint</legend>
-			<ul class="flat" id="terrainPalette"></ul>
-			<legend>Markers</legend>
-			<ul class="flat" id="markerPalette"></ul>
+			<legend>Structure Placement</legend>
+			<div id="structurePalette" style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;"></div>
+			<div class="small">Click a structure type, then click hexes to place/move/remove structures. Only one of each color+type combination can exist.</div>
 		</div>
 
 		<div class="panel group">
@@ -380,40 +377,51 @@ function redrawWithSelection(){
 	updateRuleCounts();
 }
 
-// ===== Painting =====
-let currentTerrain = /** @type {Terrain} */ ('desert');
-let currentMarker = /** @type {{ kind:'animal'|'structure'|null, value?:any }} */ ({ kind:null });
+// ===== Structure placement variables =====
+let currentStructureType = null; // 'standing_stone' | 'abandoned_shack' | null
+let currentStructureColor = null; // 'black' | 'blue' | 'green' | 'white' | null
+
+// ===== Hex click (structure placement only) =====
 function onHexClick(e){
 	e.preventDefault(); e.stopPropagation();
-	const g=e.currentTarget; const q=+g.dataset.q; const r=+g.dataset.r; const c=cellAt(q,r);
-	if(e.altKey){ c.animals.clear(); c.structures=[]; redrawWithSelection(); return; }
-	if(e.shiftKey){
-		if(currentMarker.kind==='animal'){
-			if(c.animals.has(currentMarker.value)) c.animals.delete(currentMarker.value); else c.animals.add(currentMarker.value);
+	if(!currentStructureType || !currentStructureColor) return;
+	
+	const q = +this.dataset.q, r = +this.dataset.r;
+	const c = cellAt(q, r);
+	
+	// Check if there's an existing structure in this cell
+	const existingStructure = c.structures.length > 0 ? c.structures[0] : null;
+	
+	if(existingStructure){
+		// If same type and color as selected, remove it
+		if(existingStructure.type === currentStructureType && existingStructure.color === currentStructureColor){
+			c.structures = [];
+		} else {
+			// Different structure - replace it, but first check for uniqueness constraint
+			// Remove any existing structure of the same type and color from the board
+			forEachCell(otherCell => {
+				otherCell.structures = otherCell.structures.filter(s => 
+					!(s.type === currentStructureType && s.color === currentStructureColor)
+				);
+			});
+			// Place the new structure
+			c.structures = [{type: currentStructureType, color: currentStructureColor}];
 		}
-		else if(currentMarker.kind==='structure'){
-			const {type,color}=currentMarker.value||{};
-			if(type && color){
-				const idx=c.structures.findIndex(s=>s.type===type && s.color===color);
-				if(idx>=0) c.structures.splice(idx,1); else c.structures.push({type,color});
-			}
-		}
+	} else {
+		// No existing structure - add new one, but enforce uniqueness constraint
+		// Remove any existing structure of the same type and color from the board
+		forEachCell(otherCell => {
+			otherCell.structures = otherCell.structures.filter(s => 
+				!(s.type === currentStructureType && s.color === currentStructureColor)
+			);
+		});
+		// Place the new structure
+		c.structures = [{type: currentStructureType, color: currentStructureColor}];
 	}
-	else { c.terrain=currentTerrain; }
+	
 	redrawWithSelection();
 }
 
-// ===== Palettes =====
-const terrainPalette=document.getElementById('terrainPalette');
-const markerPalette=document.getElementById('markerPalette');
-function buildPalettes(){
-	terrainPalette.innerHTML=''; TERRAIN.forEach(t=>{ const li=document.createElement('li'); li.style.cursor='pointer'; li.innerHTML=`<span class='sw' style='background:${TERRAIN_COLORS[t]}'></span>${t}`; li.addEventListener('click',()=>{ currentTerrain=t; highlightSelected(terrainPalette, li); }); terrainPalette.appendChild(li); }); highlightSelected(terrainPalette, terrainPalette.firstElementChild);
-	markerPalette.innerHTML=''; const none=document.createElement('li'); none.textContent='— none —'; none.style.cursor='pointer'; none.addEventListener('click',()=>{ currentMarker={kind:null}; highlightSelected(markerPalette, none); }); markerPalette.appendChild(none);
-	ANIMALS.forEach(a=>{ const li=document.createElement('li'); li.style.cursor='pointer'; li.textContent=`${a} ${ANIMAL_GLYPH[a]}`; li.addEventListener('click',()=>{ currentMarker={kind:'animal', value:a}; highlightSelected(markerPalette, li); }); markerPalette.appendChild(li); });
-	STRUCT_TYPES.forEach(st=>{ COLORS.forEach(col=>{ const li=document.createElement('li'); li.style.cursor='pointer'; li.innerHTML=`<span class='colorChip' style='background:${STRUCT_COLORS[col]}'></span> ${col} ${st.replace('_',' ')}`; li.addEventListener('click',()=>{ currentMarker={kind:'structure', value:{type:st,color:col}}; highlightSelected(markerPalette, li); }); markerPalette.appendChild(li); }); });
-	highlightSelected(markerPalette, none);
-}
-function highlightSelected(list, el){ [...list.children].forEach(c=>c.style.outline=''); if(el) el.style.outline='2px solid #22d3ee'; }
 
 // ===== Tile helpers =====
 function blankBoard(){
@@ -945,11 +953,86 @@ playersSel.addEventListener('change', ()=>{
 	redrawWithSelection(); 
 });
 
+// ===== Structure palette =====
+function buildStructurePalette(){
+	const host = document.getElementById('structurePalette');
+	if(!host) return;
+	
+	host.innerHTML = '';
+	
+	// Reorder colors: blue, green, white, black (black last)
+	const colorOrder = ['blue', 'green', 'white', 'black'];
+	
+	// Create 2x4 grid: same color structures side by side
+	colorOrder.forEach(color => {
+		// Create a row container for this color's structures
+		const rowDiv = document.createElement('div');
+		rowDiv.style.display = 'contents'; // Use CSS grid layout
+		
+		STRUCT_TYPES.forEach(type => {
+			const btn = document.createElement('button');
+			btn.className = 'inline';
+			btn.style.margin = '0';
+			btn.style.padding = '4px';
+			btn.style.width = '100%';
+			btn.style.height = '48px';
+			btn.style.background = '#374151';
+			btn.style.border = '1px solid #666';
+			btn.style.borderRadius = '4px';
+			btn.style.display = 'flex';
+			btn.style.alignItems = 'center';
+			btn.style.justifyContent = 'center';
+			
+			// Create SVG for the structure symbol
+			const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+			svg.setAttribute('width', '36');
+			svg.setAttribute('height', '36');
+			svg.setAttribute('viewBox', '-18 -18 36 36');
+			
+			const shape = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+			
+			if(type === 'standing_stone'){
+				// Octagon (8 sides, rotated 22.5 degrees like in the board)
+				shape.setAttribute('points', regularPolygonPoints(0, 0, 15, 8, 22.5));
+			} else {
+				// Triangle (3 sides, rotated -90 degrees like in the board)
+				shape.setAttribute('points', regularPolygonPoints(0, 0, 15, 3, -90));
+			}
+			
+			shape.setAttribute('fill', STRUCT_COLORS[color]);
+			shape.setAttribute('stroke', '#000');
+			shape.setAttribute('stroke-width', '1.5');
+			
+			svg.appendChild(shape);
+			btn.appendChild(svg);
+			
+			btn.addEventListener('click', () => {
+				// Clear previous selection
+				document.querySelectorAll('#structurePalette button').forEach(b => {
+					b.style.boxShadow = '';
+				});
+				
+				// Toggle selection
+				if(currentStructureType === type && currentStructureColor === color){
+					currentStructureType = null;
+					currentStructureColor = null;
+				} else {
+					currentStructureType = type;
+					currentStructureColor = color;
+					btn.style.boxShadow = '0 0 0 2px #22d3ee';
+				}
+			});
+			
+			host.appendChild(btn);
+		});
+	});
+}
+
 // ===== Bootstrap =====
-buildPalettes();
 loadDefaultGame(); // Load the default game setup
 rebuildRuleList();
 rebuildAssignmentsUI(); // This will now pick up the loaded configurations
+buildStructurePalette();
 redrawWithSelection();
 
 </script>
