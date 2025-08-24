@@ -6,21 +6,22 @@
 	<title>Cryptid Board Analyzer (Lightweight)</title>
 	<style>
 		:root { --pad: 10px; --bg: #0f172a; --panel: #111827; --muted: #94a3b8; --text: #e5e7eb; }
-		html, body { height: 100%; }
+		html, body { height: 100%; overflow: hidden; }
 		body {
 			margin: 0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
-			background: var(--bg); color: var(--text); display: grid; grid-template-columns: 320px 1fr 420px;
+			background: var(--bg); color: var(--text); display: grid; grid-template-columns: 320px 1fr 480px;
 			grid-template-rows: auto 1fr; grid-template-areas:
 				"header header header"
 				"left canvas right";
 			gap: 10px; padding: var(--pad);
+			box-sizing: border-box;
 		}
 		h1 { font-size: 18px; margin: 0; letter-spacing: .2px; }
 		#header { grid-area: header; display:flex; align-items:center; gap:12px; background:var(--panel); border-radius:12px; padding:10px 14px; }
 		.badge { font-size: 12px; color: var(--bg); background: #a7f3d0; border-radius: 999px; padding: 2px 8px; }
 		.panel { background: var(--panel); border-radius: 12px; padding: 10px; }
 		#left { grid-area: left; display: grid; gap: 10px; align-content: start; }
-		#right { grid-area: right; display: grid; gap: 10px; align-content: start; }
+		#right { grid-area: right; display: grid; gap: 8px; align-content: start; }
 		#canvasWrap { grid-area: canvas; position: relative; background: #0b1220; border-radius: 12px; overflow: hidden; }
 		label { font-size: 12px; color: var(--muted); }
 		select, button, input[type="number"], textarea, input[type="text"] { width: 100%; background: #0b1220; color: var(--text); border: 1px solid #243041; border-radius: 8px; padding: 8px; font: inherit; }
@@ -31,7 +32,7 @@
 		.small { font-size: 12px; color: var(--muted); }
 		.kbd { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; background:#0b1220; border:1px solid #223048; padding:2px 6px; border-radius:6px; }
 		legend { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
-		.ruleList { display:grid; gap:6px; max-height: 42vh; overflow:auto; border:1px solid #223048; border-radius:8px; padding:8px; }
+		.ruleList { display:grid; gap:6px; max-height: 25vh; overflow:auto; border:1px solid #223048; border-radius:8px; padding:8px; }
 		.ruleItem { display:grid; grid-template-columns: 1fr 42px; gap:6px; align-items:center; }
 		#hexsvg { width:100%; height:100%; display:block; }
 		#canvasWrap, #hexsvg, #hexsvg * { -webkit-user-select: none; user-select: none; }
@@ -47,11 +48,7 @@
 </head>
 <body>
 	<header id="header" class="panel">
-		<h1>Cryptid Analyzer</h1>
-		<span class="badge">flat-top hex · 12×9</span>
-		<div class="small">
-			Evaluate draws outlines for each player's assigned rule; the single cell satisfying all assigned rules is highlighted with the habitat marker. Place structures by selecting them and clicking hexes.
-		</div>
+		<h1>Cryptid Explorer</h1>
 	</header>
 
 	<section id="left">
@@ -63,36 +60,30 @@
 				<option value="5">5 players</option>
 			</select>
 			<div class="row">
-				<button id="evaluate" class="inline">Evaluate</button>
-				<button id="clearHighlights" class="inline">Clear</button>
-			</div>
-			<div class="row">
 				<input type="checkbox" id="showHabitat">
 				<label for="showHabitat" style="margin-left: 6px; font-size: 14px;">Show Habitat</label>
 			</div>
-			<div class="small" id="resultSummary">—</div>
 		</div>
 
 		<div class="panel group">
-			<legend>Structure Placement</legend>
+			<div class="small">Click a structure type, then click hexes to place/move/remove structures.</div>
 			<div id="structurePalette" style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;"></div>
-			<div class="small">Click a structure type, then click hexes to place/move/remove structures. Only one of each color+type combination can exist.</div>
 		</div>
 
 		<div class="panel group">
-			<legend>Tile arrangement (2×3)</legend>
+			<legend>Tile arrangement</legend>
 			<input id="arrangementStr" class="code" placeholder="e.g., 6 3 1 5 4 2" value="-4 -2 -5 1 -3 6">
 			<div class="row">
 				<button id="applyArrangement" class="inline">Apply</button>
-				<button id="toggleTileLabels" class="inline">Toggle labels</button>
+				<button id="toggleTileLabels" class="inline">Toggle tile numbers</button>
 			</div>
 			
 		</div>
 
 		<div class="panel group">
-			<legend>Import / Export Game</legend>
+			<legend>Save Game</legend>
 			<div class="row">
-				<button id="exportGame" class="inline">Export Game JSON</button>
+				<button id="exportGame" class="inline">Export</button>
 				<button id="importGame" class="inline">Import</button>
 			</div>
 			<textarea id="gameJSON" class="code" placeholder="Game JSON will appear here..."></textarea>
@@ -105,14 +96,21 @@
 
 	<aside id="right">
 		<div class="panel group">
-			<legend>Rules (filtered by players)</legend>
 			<div class="ruleList" id="ruleList"></div>
-			<div class="small">Counts update automatically.</div>
 		</div>
 
 		<div class="panel group">
-			<legend>Players & clues</legend>
 			<div id="assignments"></div>
+			<div style="margin-top: 8px">
+				<div style="border-top: 1px solid #223048; margin-bottom: 18px;"></div>
+				<div style="font-size: 12px; color: var(--muted); margin-bottom: 6px;">Game Hint</div>
+				<div id="hintDisplay"></div>
+			</div>
+		</div>
+
+		<div class="panel group" id="balanceAnalysis" style="display: none;">
+			<legend>2-Player Variant Pairings</legend>
+			<div id="balanceResults"></div>
 		</div>
 	</aside>
 
@@ -123,11 +121,11 @@ const ANIMALS = /** @type {const} */ (['bear','cougar']);
 const STRUCT_TYPES = /** @type {const} */ (['standing_stone','abandoned_shack']);
 const COLORS = /** @type {const} */ (['black','blue','green','white']);
 
-const TERRAIN_COLORS = { desert:'#eab308', swamp:'#7c3aed', mountain:'#9ca3af', forest:'#16a34a', water:'#0284c7' };
+const TERRAIN_COLORS = { desert:'#F1CC33', swamp:'#361D3f', mountain:'#989898', forest:'#579A4D', water:'#0073CF' };
 const STRUCT_COLORS = { black:'#111827', blue:'#3b82f6', green:'#22c55e', white:'#e5e7eb' };
 const RULE_COLORS = ['#f97316','#22d3ee','#a78bfa','#34d399','#f43f5e','#eab308','#06b6d4','#84cc16'];
 
-const PLAYER_COLORS = { blue:'#3b82f6', red:'#ef4444', green:'#22c55e', purple:'#a78bfa', orange:'#f97316' };
+const PLAYER_COLORS = { blue:'#1520A6', red:'#ff0033', green:'#006400', purple:'#9933ff', orange:'#ff6600' };
 const PLAYER_COLOR_ORDER = ['blue','red','green','purple','orange'];
 const DEFAULT_PLAYER_COLORS_BY_COUNT = {3:['blue','red','green'],4:['blue','red','green','purple'],5:['blue','red','green','purple','orange']};
 let PLAYER_ASSIGNMENTS = []; // [{color:'blue'|'red'|'green'|'purple'|'orange', ruleId:string|null, clueNumber:number|null}]
@@ -138,6 +136,98 @@ let GAME_CONFIGURATIONS = {
 	4: [],  // Array of {color, clueNumber} 
 	5: []   // Array of {color, clueNumber}
 };
+
+// Game hints for different player counts
+let GAME_HINTS = {
+	3: null,  // Hint number (1-80)
+	4: null,  // Hint number (1-80) 
+	5: null   // Hint number (1-80)
+};
+
+// Hint descriptions (1-indexed)
+const HINT_DESCRIPTIONS = [
+	"", // 0 - placeholder since hints are 1-indexed
+	"no within two spaces clues",
+	"no within three spaces clues", 
+	"no within two spaces clues",
+	"no clues that mention any animal territory",
+	"no within three spaces clues",
+	"no within two spaces clues",
+	"no terrain or terrain clues",
+	"no within one space clues",
+	"no within three spaces clues",
+	"no clues that mention desert",
+	"no clues that mention forest",
+	"no within two spaces clues",
+	"no within two spaces clues",
+	"no within two spaces clues",
+	"no within three spaces clues",
+	"no within one space clues",
+	"no within two spaces clues",
+	"no clues that mention mountain",
+	"no clues that mention swamp",
+	"no within three spaces clues",
+	"no within one space clues",
+	"no clues that mention mountain",
+	"no within three spaces clues",
+	"no within one space clues",
+	"no within two spaces clues",
+	"no within one space clues",
+	"no clues that mention forest",
+	"no within one space clues",
+	"no within three spaces clues",
+	"no clues that mention water",
+	"no clues that mention swamp",
+	"no terrain or terrain clues",
+	"no within one space clues",
+	"no within two spaces clues",
+	"no within one space clues",
+	"no terrain or terrain clues",
+	"no within one space clues",
+	"no within three spaces clues",
+	"no clues that mention water",
+	"no within three spaces clues",
+	"no within three spaces clues",
+	"no within two spaces clues",
+	"no within three spaces clues",
+	"no within three spaces clues",
+	"no within one space clues",
+	"no clues that mention water",
+	"no within two spaces clues",
+	"no within two spaces clues",
+	"no terrain or terrain clues",
+	"no within two spaces clues",
+	"no within two spaces clues",
+	"no clues that mention any type of terrain",
+	"no within two spaces clues",
+	"no within three spaces clues",
+	"no within one space clues",
+	"no within three spaces clues",
+	"no clues that mention desert",
+	"no within three spaces clues",
+	"no terrain or terrain clues",
+	"no within two spaces clues",
+	"no within two spaces clues",
+	"no within two spaces clues",
+	"no clues that mention forest",
+	"no within two spaces clues",
+	"no within two spaces clues",
+	"no within three spaces clues",
+	"no within two spaces clues",
+	"no clues that mention swamp",
+	"no clues that mention mountain",
+	"no within three spaces clues",
+	"no clues that mention desert",
+	"no within two spaces clues",
+	"no within three spaces clues",
+	"no within three spaces clues",
+	"no within three spaces clues",
+	"no within one space clues",
+	"no within two spaces clues",
+	"no within two spaces clues",
+	"no within three spaces clues",
+	"no terrain or terrain clues"
+];
 
 // Default game setup
 const DEFAULT_GAME = {
@@ -158,6 +248,11 @@ const DEFAULT_GAME = {
 		3: [{color: 'green', clueNumber: 68}, {color: 'orange', clueNumber: 5}, {color: 'purple', clueNumber: 79}],
 		4: [{color: 'green', clueNumber: 62}, {color: 'blue', clueNumber: 1}, {color: 'orange', clueNumber: 78}, {color: 'purple', clueNumber: 65}],
 		5: [{color: 'red', clueNumber: 91}, {color: 'green', clueNumber: 87}, {color: 'blue', clueNumber: 88}, {color: 'orange', clueNumber: 63}, {color: 'purple', clueNumber: 49}]
+	},
+	hints: {
+		3: 51,
+		4: 48,
+		5: 68
 	}
 };
 
@@ -289,20 +384,20 @@ function draw(perRuleOverlays, uniqueKey, selectedRuleOverlay, showHabitat = tru
 		// structures
 		if(c.structures.length){
 			const sG=document.createElementNS(svgNS,'g');
-			sG.setAttribute('transform','translate(0,8)');
+			sG.setAttribute('transform','translate(0,0)'); // Center structures
 			c.structures.slice(0,3).forEach((s,i)=>{
-				const dx=-12 + i*12;
+				const dx = c.structures.length === 1 ? 0 : (-12 + i*12); // Center single structures, spread multiple
 				if(s.type==='standing_stone'){
 					const p=document.createElementNS(svgNS,'polygon');
-					p.setAttribute('points', regularPolygonPoints(dx,0,5.5,8,22.5));
+					p.setAttribute('points', regularPolygonPoints(dx,0,9,8,22.5)); // Increased from 5.5 to 9
 					p.setAttribute('fill', STRUCT_COLORS[s.color]);
-					p.setAttribute('stroke', '#0b1220'); p.setAttribute('stroke-width','1');
+					p.setAttribute('stroke', '#e5e7eb'); p.setAttribute('stroke-width','0.75');
 					sG.appendChild(p);
 				} else {
 					const p=document.createElementNS(svgNS,'polygon');
-					p.setAttribute('points', regularPolygonPoints(dx,0,6,3,-90));
+					p.setAttribute('points', regularPolygonPoints(dx,0,10,3,-90)); // Increased from 6 to 10
 					p.setAttribute('fill', STRUCT_COLORS[s.color]);
-					p.setAttribute('stroke', '#0b1220'); p.setAttribute('stroke-width','1');
+					p.setAttribute('stroke', '#e5e7eb'); p.setAttribute('stroke-width','0.75');
 					sG.appendChild(p);
 				}
 			});
@@ -419,7 +514,7 @@ function onHexClick(e){
 		c.structures = [{type: currentStructureType, color: currentStructureColor}];
 	}
 	
-	redrawWithSelection();
+	autoEvaluateAndRedraw();
 }
 
 
@@ -461,7 +556,7 @@ function applyArrangementString(str, redraw=true){
 		lastArrangement = arr;
 		blankBoard();
 		arr.forEach(a=> stampTile(a.id, a.flipped, a.col, a.row));
-		if(redraw){ redrawWithSelection(); }
+		if(redraw){ autoEvaluateAndRedraw(); }
 	}catch(e){ alert(e.message); }
 }
 
@@ -497,6 +592,11 @@ function exportGame() {
 			3: GAME_CONFIGURATIONS[3],
 			4: GAME_CONFIGURATIONS[4], 
 			5: GAME_CONFIGURATIONS[5]
+		},
+		hints: {
+			3: GAME_HINTS[3],
+			4: GAME_HINTS[4],
+			5: GAME_HINTS[5]
 		}
 	};
 	
@@ -529,11 +629,19 @@ function importGame() {
 			GAME_CONFIGURATIONS[5] = gameData.playerConfigs[5] || [];
 		}
 		
+		// Load hints
+		if (gameData.hints) {
+			GAME_HINTS[3] = gameData.hints[3] || null;
+			GAME_HINTS[4] = gameData.hints[4] || null;
+			GAME_HINTS[5] = gameData.hints[5] || null;
+		}
+		
 		// Update current player assignments based on current player count
 		updatePlayerAssignmentsFromConfig();
 		
 		rebuildAssignmentsUI();
-		redrawWithSelection();
+		updateHintDisplay(); // Update hint display after import
+		autoEvaluateAndRedraw();
 		
 	} catch(e) { 
 		alert('Invalid Game JSON: ' + e.message); 
@@ -592,6 +700,11 @@ function loadDefaultGame() {
 	GAME_CONFIGURATIONS[4] = [...DEFAULT_GAME.playerConfigs[4]];
 	GAME_CONFIGURATIONS[5] = [...DEFAULT_GAME.playerConfigs[5]];
 	
+	// Load hints
+	GAME_HINTS[3] = DEFAULT_GAME.hints[3];
+	GAME_HINTS[4] = DEFAULT_GAME.hints[4];
+	GAME_HINTS[5] = DEFAULT_GAME.hints[5];
+	
 	// Display the default game JSON in the text area
 	gameJSON.value = JSON.stringify(DEFAULT_GAME, null, 2);
 	
@@ -610,7 +723,7 @@ const toggleTileLabelsBtn = document.getElementById('toggleTileLabels');
 applyArrangementBtn.addEventListener('click', ()=> applyArrangementString(arrangementStr.value||'1 2 3 4 5 6'));
 arrangementStr.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); applyArrangementString(arrangementStr.value||'1 2 3 4 5 6'); }});
 
-toggleTileLabelsBtn.addEventListener('click', ()=>{ showTileLabels=!showTileLabels; redrawWithSelection(); });
+toggleTileLabelsBtn.addEventListener('click', ()=>{ showTileLabels=!showTileLabels; autoEvaluateAndRedraw(); });
 
 
 // ===== Rules =====
@@ -770,7 +883,7 @@ function rebuildAssignmentsUI(){
 	}
 	
 	PLAYER_ASSIGNMENTS.forEach((a,idx)=>{
-		const row=document.createElement('div'); row.className='row';
+		const row=document.createElement('div'); row.className='row'; row.style.marginBottom='8px';
 		const label=document.createElement('label'); label.textContent=`Player ${idx+1}`; label.style.minWidth='70px';
 		const chip=document.createElement('span'); chip.className='colorChip'; chip.style.background=PLAYER_COLORS[a.color]; chip.style.marginRight='6px';
 		
@@ -787,6 +900,8 @@ function rebuildAssignmentsUI(){
 			}
 			// Save current assignments to game configurations
 			saveCurrentAssignmentsToConfig();
+			// Auto-evaluate and redraw
+			autoEvaluateAndRedraw();
 		});
 		
 		const clueInput=document.createElement('input');
@@ -866,13 +981,33 @@ function rebuildAssignmentsUI(){
 			}
 			// Save current assignments to game configurations
 			saveCurrentAssignmentsToConfig();
+			// Auto-evaluate and redraw
+			autoEvaluateAndRedraw();
 		});
 		
 		// Initial rule display
 		updateRuleDisplay(a, ruleDisplay, cellCount);
 		
+		// Add show outline checkbox
+		const showOutlineCheckbox = document.createElement('input');
+		showOutlineCheckbox.type = 'checkbox';
+		showOutlineCheckbox.id = `showPlayer${idx}`;
+		showOutlineCheckbox.style.marginLeft = '6px';
+		showOutlineCheckbox.addEventListener('change', () => {
+			autoEvaluateAndRedraw();
+		});
+		
+		const showOutlineLabel = document.createElement('label');
+		showOutlineLabel.htmlFor = `showPlayer${idx}`;
+		showOutlineLabel.textContent = 'Show';
+		showOutlineLabel.style.fontSize = '12px';
+		showOutlineLabel.style.color = 'var(--muted)';
+		showOutlineLabel.style.marginLeft = '4px';
+		
 		row.appendChild(label); 
-		row.appendChild(chip); 
+		row.appendChild(chip);
+		row.appendChild(showOutlineCheckbox);
+		row.appendChild(showOutlineLabel);
 		row.appendChild(colorSel); 
 		row.appendChild(clueInput);
 		row.appendChild(ruleDisplay);
@@ -881,7 +1016,38 @@ function rebuildAssignmentsUI(){
 	});
 }
 
-// ===== Evaluate =====
+// ===== Game Hint Display =====
+function updateHintDisplay() {
+	const hintDisplay = document.getElementById('hintDisplay');
+	const p = +playersSel.value;
+	const hintNumber = GAME_HINTS[p];
+	
+	if (!hintNumber || hintNumber < 1 || hintNumber > 80) {
+		hintDisplay.innerHTML = '<div class="small">No hint assigned for this player count.</div>';
+		return;
+	}
+	
+	const hintDescription = HINT_DESCRIPTIONS[hintNumber];
+	
+	hintDisplay.innerHTML = `
+		<div class="row">
+			<input type="number" id="hintInput" min="1" max="80" value="${hintNumber}" style="width: 60px;" placeholder="1-80">
+			<span style="font-size: 12px; color: var(--muted); margin-left: 6px;">${hintDescription}</span>
+		</div>
+	`;
+	
+	// Add event listener for hint input changes
+	const hintInput = document.getElementById('hintInput');
+	hintInput.addEventListener('input', () => {
+		const newHintNumber = parseInt(hintInput.value, 10);
+		if (newHintNumber >= 1 && newHintNumber <= 80) {
+			GAME_HINTS[p] = newHintNumber;
+			updateHintDisplay(); // Refresh to show new description
+		}
+	});
+}
+
+// ===== Automatic Evaluation =====
 function evalRule(rule){
 	const good=new Set();
 	forEachCell(c=>{
@@ -902,13 +1068,11 @@ function evalRule(rule){
 	});
 	return good;
 }
+
 let latestPerRule=null, latestUniqueKey=null;
 let selectedRuleId=null; // Track the currently selected rule for inspection
-const evaluateBtn=document.getElementById('evaluate');
-const clearHighlightsBtn=document.getElementById('clearHighlights');
-const resultSummary=document.getElementById('resultSummary');
 
-evaluateBtn.addEventListener('click',()=>{
+function autoEvaluateAndRedraw(){
 	const p=+playersSel.value; const subset=RULES.filter(r=>r.players.includes(p));
 	const byId=new Map(subset.map(r=>[r.id,r]));
 	
@@ -916,12 +1080,25 @@ evaluateBtn.addEventListener('click',()=>{
 	const activeAssignments = PLAYER_ASSIGNMENTS.map((a,idx)=>({...a, originalIndex:idx})).filter(a=>a.ruleId);
 	const act = activeAssignments.map(a=>byId.get(a.ruleId)).filter(Boolean);
 	
-	if(act.length===0){ latestPerRule=null; latestUniqueKey=null; redrawWithSelection(); resultSummary.textContent='No assigned rules.'; return; }
+	if(act.length===0){ 
+		latestPerRule=null; 
+		latestUniqueKey=null; 
+		habitatCellSet=null;
+		redrawWithSelection(); 
+		updateBalanceAnalysis(p, []);
+		return; 
+	}
 	
 	const per = act.map((r,i)=>[r, evalRule(r), activeAssignments[i]]);
 	per.forEach(([r,s])=>{ const el=document.getElementById(`rc_${r.id}`); if(el) el.textContent=`${s.size}`; });
 	
-	const overlays = per.map(([r,s,assignment])=>({id:r.id,set:s,color: PLAYER_COLORS[assignment.color] }));
+	// Only show overlays for players whose checkboxes are checked
+	const overlays = per.filter(([r,s,assignment]) => {
+		const checkbox = document.getElementById(`showPlayer${assignment.originalIndex}`);
+		return checkbox && checkbox.checked;
+	}).map(([r,s,assignment])=>({id:r.id,set:s,color: PLAYER_COLORS[assignment.color] }));
+	
+	// Always calculate habitat intersection regardless of checkboxes
 	let acc=null; per.forEach(([_,s])=>{ acc = acc? intersect(acc,s): s; });
 	const uniqKey=acc.size===1?[...acc][0]:null;
 	
@@ -929,12 +1106,75 @@ evaluateBtn.addEventListener('click',()=>{
 	habitatCellSet = acc;
 	
 	latestPerRule=overlays; latestUniqueKey=uniqKey; redrawWithSelection();
-	const lines=[`Assigned rules: ${act.length}`, `Intersection: ${acc.size}`];
-	per.slice(0,5).forEach(([r,s,assignment],i)=>lines.push(`#P${assignment.originalIndex+1} ${r.label} → ${s.size}`));
-	resultSummary.textContent=lines.join('  |  ');
-});
+	
+	// Update balance analysis for 4-player games
+	updateBalanceAnalysis(p, per);
+}
+
 function intersect(a,b){ const out=new Set(); for(const v of a) if(b.has(v)) out.add(v); return out; }
-clearHighlightsBtn.addEventListener('click',()=>{ latestPerRule=null; latestUniqueKey=null; redrawWithSelection(); resultSummary.textContent='—'; });
+
+// ===== Balance Analysis for 4-Player Games =====
+function updateBalanceAnalysis(playerCount, playerRuleData) {
+	const balancePanel = document.getElementById('balanceAnalysis');
+	const balanceResults = document.getElementById('balanceResults');
+	
+	if (playerCount !== 4 || playerRuleData.length !== 4) {
+		balancePanel.style.display = 'none';
+		return;
+	}
+	
+	balancePanel.style.display = 'block';
+	
+	// Extract rule sets and assignments for easier reference
+	const rules = playerRuleData.map(([rule, ruleSet, assignment]) => ({
+		rule,
+		ruleSet,
+		assignment,
+		label: `P${assignment.originalIndex + 1}`,
+		colorCircle: `<span class="colorChip" style="background: ${PLAYER_COLORS[assignment.color]}; display: inline-block; width: 12px; height: 12px; border-radius: 50%; margin: 0 2px; vertical-align: middle;"></span>`
+	}));
+	
+	// Calculate all 6 pairwise intersections
+	const pairIntersections = [];
+	for (let i = 0; i < 4; i++) {
+		for (let j = i + 1; j < 4; j++) {
+			const intersection = intersect(rules[i].ruleSet, rules[j].ruleSet);
+			pairIntersections.push({
+				players: [i, j],
+				labels: [rules[i].label, rules[j].label],
+				count: intersection.size,
+				intersection
+			});
+		}
+	}
+	
+	// Calculate the 3 possible team pairings
+	const teamPairings = [
+		{ teams: [[0,1], [2,3]], labels: [rules[0].colorCircle + rules[1].colorCircle, rules[2].colorCircle + rules[3].colorCircle] },
+		{ teams: [[0,2], [1,3]], labels: [rules[0].colorCircle + rules[2].colorCircle, rules[1].colorCircle + rules[3].colorCircle] },
+		{ teams: [[0,3], [1,2]], labels: [rules[0].colorCircle + rules[3].colorCircle, rules[1].colorCircle + rules[2].colorCircle] }
+	];
+	
+	let html = '';
+	
+	// Show team pairing analysis
+	teamPairings.forEach((pairing, idx) => {
+		const team1Intersection = intersect(rules[pairing.teams[0][0]].ruleSet, rules[pairing.teams[0][1]].ruleSet);
+		const team2Intersection = intersect(rules[pairing.teams[1][0]].ruleSet, rules[pairing.teams[1][1]].ruleSet);
+		
+		const diff = Math.abs(team1Intersection.size - team2Intersection.size);
+		const balanceClass = diff <= 2 ? 'color: var(--muted)' : diff <= 5 ? 'color: #eab308' : 'color: #ef4444';
+		
+		// Add top margin to first item to create proper spacing from legend
+		const marginTop = idx === 0 ? 'margin-top: 10px;' : '';
+		html += `<div style="font-size: 12px; margin: 4px 0; ${marginTop} ${balanceClass};">`;
+		html += `${idx + 1}. ${pairing.labels[0]} (${team1Intersection.size}) vs ${pairing.labels[1]} (${team2Intersection.size}) - Diff: ${diff}`;
+		html += '</div>';
+	});
+	html += '</div>';
+	
+	balanceResults.innerHTML = html;
+}
 
 const showHabitatCheckbox = document.getElementById('showHabitat');
 showHabitatCheckbox.addEventListener('change', ()=>{ redrawWithSelection(); });
@@ -950,7 +1190,8 @@ playersSel.addEventListener('change', ()=>{
 	rebuildRuleList(); rebuildAssignmentsUI(); 
 	updatePlayerAssignmentsFromConfig(); // Load saved config for this player count
 	rebuildAssignmentsUI(); // Rebuild again with the loaded config
-	redrawWithSelection(); 
+	updateHintDisplay(); // Update hint display for new player count
+	autoEvaluateAndRedraw(); // Auto-evaluate instead of just redrawWithSelection
 });
 
 // ===== Structure palette =====
@@ -1033,7 +1274,8 @@ loadDefaultGame(); // Load the default game setup
 rebuildRuleList();
 rebuildAssignmentsUI(); // This will now pick up the loaded configurations
 buildStructurePalette();
-redrawWithSelection();
+updateHintDisplay(); // Initialize hint display
+autoEvaluateAndRedraw(); // Auto-evaluate on startup
 
 </script>
 </body>
