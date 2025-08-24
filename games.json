@@ -1,0 +1,626 @@
+[
+	{
+		"tileArrangement": "-4 -2 -5 1 -3 6",
+		"structures": [
+			{
+				"type": "standing_stone",
+				"color": "white",
+				"q": 4,
+				"r": 0
+			},
+			{
+				"type": "standing_stone",
+				"color": "green",
+				"q": 1,
+				"r": 4
+			},
+			{
+				"type": "standing_stone",
+				"color": "black",
+				"q": 2,
+				"r": 4
+			},
+			{
+				"type": "standing_stone",
+				"color": "blue",
+				"q": 4,
+				"r": 6
+			},
+			{
+				"type": "abandoned_shack",
+				"color": "green",
+				"q": 4,
+				"r": 1
+			},
+			{
+				"type": "abandoned_shack",
+				"color": "blue",
+				"q": 4,
+				"r": 2
+			},
+			{
+				"type": "abandoned_shack",
+				"color": "white",
+				"q": 2,
+				"r": 3
+			},
+			{
+				"type": "abandoned_shack",
+				"color": "black",
+				"q": 7,
+				"r": 4
+			}
+		],
+		"playerConfigs": {
+			"3": [
+				{
+					"color": "green",
+					"clueNumber": 68
+				},
+				{
+					"color": "orange",
+					"clueNumber": 5
+				},
+				{
+					"color": "purple",
+					"clueNumber": 79
+				}
+			],
+			"4": [
+				{
+					"color": "green",
+					"clueNumber": 62
+				},
+				{
+					"color": "blue",
+					"clueNumber": 1
+				},
+				{
+					"color": "orange",
+					"clueNumber": 78
+				},
+				{
+					"color": "purple",
+					"clueNumber": 65
+				}
+			],
+			"5": [
+				{
+					"color": "red",
+					"clueNumber": 91
+				},
+				{
+					"color": "green",
+					"clueNumber": 87
+				},
+				{
+					"color": "blue",
+					"clueNumber": 88
+				},
+				{
+					"color": "orange",
+					"clueNumber": 63
+				},
+				{
+					"color": "purple",
+					"clueNumber": 49
+				}
+			]
+		},
+		"hints": {
+			"3": 51,
+			"4": 48,
+			"5": 68
+		}
+	},
+	{
+		"tileArrangement": "2 1 -5 4 3 6",
+		"structures": [
+			{
+				"type": "abandoned_shack",
+				"color": "blue",
+				"q": 6,
+				"r": 0
+			},
+			{
+				"type": "abandoned_shack",
+				"color": "green",
+				"q": 5,
+				"r": 2
+			},
+			{
+				"type": "abandoned_shack",
+				"color": "white",
+				"q": 10,
+				"r": 3
+			},
+			{
+				"type": "standing_stone",
+				"color": "white",
+				"q": 10,
+				"r": 4
+			},
+			{
+				"type": "standing_stone",
+				"color": "green",
+				"q": 9,
+				"r": 7
+			},
+			{
+				"type": "standing_stone",
+				"color": "blue",
+				"q": 6,
+				"r": 8
+			}
+		],
+		"playerConfigs": {
+			"3": [
+				{
+					"color": "red",
+					"clueNumber": 17
+				},
+				{
+					"color": "green",
+					"clueNumber": 86
+				},
+				{
+					"color": "blue",
+					"clueNumber": 6
+				}
+			],
+			"4": [
+				{
+					"color": "red",
+					"clueNumber": 88
+				},
+				{
+					"color": "green",
+					"clueNumber": 8
+				},
+				{
+					"color": "blue",
+					"clueNumber": 1
+				},
+				{
+					"color": "orange",
+					"clueNumber": 13
+				}
+			],
+			"5": [
+				{
+					"color": "red",
+					"clueNumber": 26
+				},
+				{
+					"color": "green",
+					"clueNumber": 34
+				},
+				{
+					"color": "blue",
+					"clueNumber": 27
+				},
+				{
+					"color": "orange",
+					"clueNumber": 85
+				},
+				{
+					"color": "purple",
+					"clueNumber": 86
+				}
+			]
+		},
+		"hints": {
+			"3": 21,
+			"4": 24,
+			"5": 18
+		}
+	},
+	{
+		"tileArrangement": "2 3 6 -1 5 -4",
+		"structures": [
+			{
+				"type": "standing_stone",
+				"color": "blue",
+				"q": 2,
+				"r": 1
+			},
+			{
+				"type": "abandoned_shack",
+				"color": "blue",
+				"q": 4,
+				"r": 1
+			},
+			{
+				"type": "standing_stone",
+				"color": "green",
+				"q": 11,
+				"r": 4
+			},
+			{
+				"type": "abandoned_shack",
+				"color": "white",
+				"q": 3,
+				"r": 5
+			},
+			{
+				"type": "abandoned_shack",
+				"color": "green",
+				"q": 0,
+				"r": 6
+			},
+			{
+				"type": "standing_stone",
+				"color": "white",
+				"q": 1,
+				"r": 8
+			}
+		],
+		"playerConfigs": {
+			"3": [
+				{
+					"color": "red",
+					"clueNumber": 17
+				},
+				{
+					"color": "green",
+					"clueNumber": 45
+				},
+				{
+					"color": "blue",
+					"clueNumber": 84
+				}
+			],
+			"4": [
+				{
+					"color": "red",
+					"clueNumber": 68
+				},
+				{
+					"color": "green",
+					"clueNumber": 5
+				},
+				{
+					"color": "blue",
+					"clueNumber": 31
+				},
+				{
+					"color": "orange",
+					"clueNumber": 77
+				}
+			],
+			"5": [
+				{
+					"color": "red",
+					"clueNumber": 25
+				},
+				{
+					"color": "green",
+					"clueNumber": 80
+				},
+				{
+					"color": "blue",
+					"clueNumber": 39
+				},
+				{
+					"color": "orange",
+					"clueNumber": 13
+				},
+				{
+					"color": "purple",
+					"clueNumber": 34
+				}
+			]
+		},
+		"hints": {
+			"3": 7,
+			"4": 72,
+			"5": 9
+		}
+	},
+	{
+		"tileArrangement": "2 5 -4 -1 6 3",
+		"structures": [
+			{
+				"type": "standing_stone",
+				"color": "white",
+				"q": 2,
+				"r": 2
+			},
+			{
+				"type": "abandoned_shack",
+				"color": "green",
+				"q": 4,
+				"r": 3
+			},
+			{
+				"type": "abandoned_shack",
+				"color": "blue",
+				"q": 7,
+				"r": 3
+			},
+			{
+				"type": "standing_stone",
+				"color": "green",
+				"q": 6,
+				"r": 6
+			},
+			{
+				"type": "standing_stone",
+				"color": "blue",
+				"q": 1,
+				"r": 8
+			},
+			{
+				"type": "abandoned_shack",
+				"color": "white",
+				"q": 10,
+				"r": 8
+			}
+		],
+		"playerConfigs": {
+			"3": [
+				{
+					"color": "red",
+					"clueNumber": 13
+				},
+				{
+					"color": "green",
+					"clueNumber": 73
+				},
+				{
+					"color": "blue",
+					"clueNumber": 73
+				}
+			],
+			"4": [
+				{
+					"color": "red",
+					"clueNumber": 80
+				},
+				{
+					"color": "green",
+					"clueNumber": 36
+				},
+				{
+					"color": "blue",
+					"clueNumber": 27
+				},
+				{
+					"color": "orange",
+					"clueNumber": 20
+				}
+			],
+			"5": [
+				{
+					"color": "red",
+					"clueNumber": 26
+				},
+				{
+					"color": "green",
+					"clueNumber": 54
+				},
+				{
+					"color": "blue",
+					"clueNumber": 18
+				},
+				{
+					"color": "orange",
+					"clueNumber": 53
+				},
+				{
+					"color": "purple",
+					"clueNumber": 9
+				}
+			]
+		},
+		"hints": {
+			"3": 67,
+			"4": 65,
+			"5": 64
+		}
+	},
+	{
+		"tileArrangement": "2 -1 -4 5 -3 -6",
+		"structures": [
+			{
+				"type": "standing_stone",
+				"color": "blue",
+				"q": 4,
+				"r": 1
+			},
+			{
+				"type": "abandoned_shack",
+				"color": "white",
+				"q": 7,
+				"r": 2
+			},
+			{
+				"type": "abandoned_shack",
+				"color": "green",
+				"q": 10,
+				"r": 3
+			},
+			{
+				"type": "standing_stone",
+				"color": "white",
+				"q": 11,
+				"r": 3
+			},
+			{
+				"type": "standing_stone",
+				"color": "green",
+				"q": 1,
+				"r": 7
+			},
+			{
+				"type": "abandoned_shack",
+				"color": "blue",
+				"q": 5,
+				"r": 7
+			}
+		],
+		"playerConfigs": {
+			"3": [
+				{
+					"color": "red",
+					"clueNumber": 17
+				},
+				{
+					"color": "green",
+					"clueNumber": 49
+				},
+				{
+					"color": "orange",
+					"clueNumber": 56
+				}
+			],
+			"4": [
+				{
+					"color": "red",
+					"clueNumber": 95
+				},
+				{
+					"color": "green",
+					"clueNumber": 6
+				},
+				{
+					"color": "blue",
+					"clueNumber": 6
+				},
+				{
+					"color": "orange",
+					"clueNumber": 40
+				}
+			],
+			"5": [
+				{
+					"color": "red",
+					"clueNumber": 66
+				},
+				{
+					"color": "green",
+					"clueNumber": 80
+				},
+				{
+					"color": "blue",
+					"clueNumber": 39
+				},
+				{
+					"color": "orange",
+					"clueNumber": 84
+				},
+				{
+					"color": "purple",
+					"clueNumber": 13
+				}
+			]
+		},
+		"hints": {
+			"3": 7,
+			"4": 53,
+			"5": 51
+		}
+	},
+	{
+		"tileArrangement": "2 -6 1 -4 -3 -5",
+		"structures": [
+			{
+				"type": "standing_stone",
+				"color": "white",
+				"q": 11,
+				"r": 1
+			},
+			{
+				"type": "standing_stone",
+				"color": "blue",
+				"q": 10,
+				"r": 3
+			},
+			{
+				"type": "abandoned_shack",
+				"color": "white",
+				"q": 9,
+				"r": 5
+			},
+			{
+				"type": "standing_stone",
+				"color": "green",
+				"q": 2,
+				"r": 7
+			},
+			{
+				"type": "abandoned_shack",
+				"color": "green",
+				"q": 7,
+				"r": 8
+			},
+			{
+				"type": "abandoned_shack",
+				"color": "blue",
+				"q": 9,
+				"r": 8
+			}
+		],
+		"playerConfigs": {
+			"3": [
+				{
+					"color": "red",
+					"clueNumber": 30
+				},
+				{
+					"color": "green",
+					"clueNumber": 45
+				},
+				{
+					"color": "orange",
+					"clueNumber": 56
+				}
+			],
+			"4": [
+				{
+					"color": "red",
+					"clueNumber": 28
+				},
+				{
+					"color": "green",
+					"clueNumber": 76
+				},
+				{
+					"color": "blue",
+					"clueNumber": 20
+				},
+				{
+					"color": "orange",
+					"clueNumber": 77
+				}
+			],
+			"5": [
+				{
+					"color": "red",
+					"clueNumber": 26
+				},
+				{
+					"color": "green",
+					"clueNumber": 71
+				},
+				{
+					"color": "blue",
+					"clueNumber": 31
+				},
+				{
+					"color": "orange",
+					"clueNumber": 46
+				},
+				{
+					"color": "purple",
+					"clueNumber": 86
+				}
+			]
+		},
+		"hints": {
+			"3": 42,
+			"4": 38,
+			"5": 40
+		}
+	}
+]
