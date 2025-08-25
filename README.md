@@ -3,9 +3,9 @@
 A web-based tool for analyzing games from the board game **Cryptid**. This tool
 helps players explore game setups, analyze rule intersections.
 
-## 🚀 Quick Start
+## Quick Start
 
-Visit the live tool at: `https://santileortiz.github.io/cryptid-explorer/`
+Visit the live tool at: <https://santileortiz.github.io/cryptid-explorer/>
 
 ### Local Development
 
