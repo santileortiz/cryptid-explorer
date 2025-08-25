@@ -427,16 +427,16 @@ function draw(perRuleOverlays, uniqueKey, selectedRuleOverlay, showHabitat = tru
 			});
 			g.appendChild(sG);
 		}
-		// per-rule outlines (use player colors if provided)
+		// per-rule outlines (use player colors if provided) - circular outlines for better readability
 		if(Array.isArray(perRuleOverlays)){
-			perRuleOverlays.forEach((ov,i)=>{ if(ov.set.has(key(c.q,c.r))){ const inset=3+i*3; const hl=document.createElementNS(svgNS,'polygon'); hl.setAttribute('points', polygonPoints(0,0,Math.max(HEX_SIZE-inset,6))); hl.setAttribute('fill','none'); hl.setAttribute('stroke', ov.color || RULE_COLORS[i%RULE_COLORS.length]); hl.setAttribute('stroke-width','3'); g.appendChild(hl);} });
+			perRuleOverlays.forEach((ov,i)=>{ if(ov.set.has(key(c.q,c.r))){ const inset=6+i*3; const hl=document.createElementNS(svgNS,'circle'); hl.setAttribute('r', Math.max(HEX_SIZE-inset,8)); hl.setAttribute('fill','none'); hl.setAttribute('stroke', ov.color || RULE_COLORS[i%RULE_COLORS.length]); hl.setAttribute('stroke-width','3'); g.appendChild(hl);} });
 		}
 		
-		// selected rule overlay (black outline with smallest radius, drawn last so it's on top)
+		// selected rule overlay (black circular outline with smallest radius, drawn last so it's on top)
 		if(selectedRuleOverlay && selectedRuleOverlay.set.has(key(c.q,c.r))){
-			const maxInset = 3 + (perRuleOverlays ? perRuleOverlays.length * 3 : 0);
-			const hl=document.createElementNS(svgNS,'polygon'); 
-			hl.setAttribute('points', polygonPoints(0,0,Math.max(HEX_SIZE-maxInset-3,4))); 
+			const maxInset = 6 + (perRuleOverlays ? perRuleOverlays.length * 3 : 0);
+			const hl=document.createElementNS(svgNS,'circle'); 
+			hl.setAttribute('r', Math.max(HEX_SIZE-maxInset-3,6)); 
 			hl.setAttribute('fill','none'); 
 			hl.setAttribute('stroke','#000000'); 
 			hl.setAttribute('stroke-width','2'); 
